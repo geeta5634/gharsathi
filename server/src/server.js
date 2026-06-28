@@ -49,6 +49,8 @@ async function start() {
 
   await getDb();
 
+  app.get('/api/ping', (req, res) => res.json({ ok: true, time: Date.now() }));
+
   app.use('/api/auth', authRoutes);
   app.use('/api/services', serviceRoutes);
   app.use('/api/workers', workerRoutes);
