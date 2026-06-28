@@ -75,6 +75,7 @@
                             <span class="bg-green-400 text-green-900 text-xs px-2 py-0.5 rounded-full flex items-center inline-flex w-fit status-badge" id="worker-status-badge">
                                 <span class="w-2 h-2 bg-green-700 rounded-full mr-1"></span> <span id="worker-status-text">Available</span>
                             </span>
+                            <span id="live-badge" class="hidden bg-red-500 text-white text-xs px-2 py-0.5 rounded-full flex items-center inline-flex w-fit ml-1"><span class="w-2 h-2 bg-white rounded-full mr-1 animate-pulse"></span> Live</span>
                         </div>
                     </div>
                     <div class="bg-blue-700 p-2 rounded-full cursor-pointer" onclick="showScreen('profile')"><i data-lucide="user" class="w-5 h-5"></i></div>
@@ -486,21 +487,48 @@
                     <div class="flex justify-between items-center pt-3 border-t border-gray-100">
                         <span class="font-bold text-gray-800">&#8377;${b.total_amount || b.visit_charge + 549}</span>
                         ${canStart ? '<button onclick="startService(\'' + b.id + '\')" class="text-blue-600 text-sm font-medium">Start Service</button>' : ''}
-                        ${b.status === 'in-progress' ? '<button onclick="completeService(\'' + b.id + '\')" class="text-green-600 text-sm font-medium">Mark Complete</button>' : ''}
+                        ${b.status === 'in-progress' ? '<div class="flex space-x-2"><span class="text-xs text-green-600 flex items-center"><span class="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></span> Live</span><button onclick="completeService(\'' + b.id + '\')" class="text-green-600 text-sm font-medium">Complete</button></div>' : ''}
                     </div>
                 </div>`;
             }).join('');
             try { lucide.createIcons(); } catch(e) {}
         }
 
+        let locationWatchId = null;
+        let sharingBookingId = null;
+
+        function startSharingLocation(bookingId) {
+            if (!navigator.geolocation) { showToast('error', 'Geolocation not supported'); return; }
+            sharingBookingId = bookingId;
+            document.getElementById('live-badge').classList.remove('hidden');
+            locationWatchId = navigator.geolocation.watchPosition(async (pos) => {
+                await apiFetch('/location/worker', {
+                    method: 'PUT', body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+                });
+            }, (err) => {
+                console.warn('Location error:', err.message);
+            }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 });
+            showToast('success', 'Live location sharing started');
+        }
+
+        function stopSharingLocation() {
+            if (locationWatchId !== null) {
+                navigator.geolocation.clearWatch(locationWatchId);
+                locationWatchId = null;
+                sharingBookingId = null;
+            }
+            document.getElementById('live-badge').classList.add('hidden');
+        }
+
         async function startService(id) {
             const data = await apiFetch('/bookings/' + id + '/status', {
                 method: 'PUT', body: JSON.stringify({ status: 'in-progress' })
             });
-            if (data) { showToast('success', 'Service started!'); await loadBookings(); }
+            if (data) { showToast('success', 'Service started!'); startSharingLocation(id); await loadBookings(); }
         }
 
         async function completeService(id) {
+            stopSharingLocation();
             const data = await apiFetch('/bookings/' + id + '/status', {
                 method: 'PUT', body: JSON.stringify({ status: 'completed' })
             });
@@ -541,6 +569,7 @@
         }
 
         function logout() {
+            stopSharingLocation();
             token = null; currentUser = null; workerProfile = null;
             localStorage.removeItem('gs_worker_token');
             document.getElementById('login').style.display = 'flex';

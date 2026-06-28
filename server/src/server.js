@@ -13,6 +13,7 @@ const serviceRoutes = require('./routes/services');
 const workerRoutes = require('./routes/workers');
 const bookingRoutes = require('./routes/bookings');
 const adminRoutes = require('./routes/admin');
+const locationRoutes = require('./routes/location');
 
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
@@ -62,6 +63,7 @@ async function start() {
   app.use('/api/workers', workerRoutes);
   app.use('/api/bookings', bookingRoutes);
   app.use('/api/admin', adminRoutes);
+  app.use('/api/location', locationRoutes);
 
   app.get('/api/stats', (req, res) => {
     try {

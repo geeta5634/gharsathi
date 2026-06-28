@@ -8,7 +8,7 @@ router.get('/', authenticate, (req, res) => {
   try {
     const { status } = req.query;
     let sql = `SELECT b.*, c.name as customer_name, c.phone as customer_phone, c.location as customer_location, 
-      w.id as worker_id, u.name as worker_name, s.name as service_name, s.icon as service_icon 
+      w.id as worker_id, w.user_id as worker_user_id, u.name as worker_name, s.name as service_name, s.icon as service_icon 
       FROM bookings b JOIN users c ON b.customer_id = c.id 
       LEFT JOIN workers w ON b.worker_id = w.id LEFT JOIN users u ON w.user_id = u.id 
       JOIN services s ON b.service_id = s.id WHERE 1=1`;
@@ -42,7 +42,7 @@ router.get('/:id', authenticate, (req, res) => {
   try {
     const booking = queryOne(
       `SELECT b.*, c.name as customer_name, c.phone as customer_phone, c.location as customer_location, c.avatar as customer_avatar,
-       w.id as worker_id, u.name as worker_name, u.phone as worker_phone, u.avatar as worker_avatar,
+       w.id as worker_id, w.user_id as worker_user_id, u.name as worker_name, u.phone as worker_phone, u.avatar as worker_avatar,
        s.name as service_name, s.icon as service_icon, s.color as service_color
        FROM bookings b JOIN users c ON b.customer_id = c.id
        LEFT JOIN workers w ON b.worker_id = w.id LEFT JOIN users u ON w.user_id = u.id
