@@ -60,9 +60,11 @@ router.post('/verify-otp', async (req, res) => {
     otpStore.delete(phoneClean);
 
     let user = queryOne('SELECT * FROM users WHERE phone = ?', phoneClean);
+    let isNewUser = false;
 
     if (!user) {
       if (!name) return res.status(400).json({ error: 'Name is required for registration' });
+      isNewUser = true;
       const id = uuidv4();
       const hashed = await bcrypt.hash(phoneClean + Date.now(), 10);
       const avatar = `https://i.pravatar.cc/200?u=${id}`;
@@ -73,7 +75,7 @@ router.post('/verify-otp', async (req, res) => {
 
     const { password: _, ...safeUser } = user;
     const token = generateToken(user);
-    res.json({ user: safeUser, token, isNew: !user._existing });
+    res.json({ user: safeUser, token, isNew: isNewUser });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
