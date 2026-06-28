@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: gharsathi
+    env: node
+    region: singapore
+    buildCommand: npm install --prefix server
+    startCommand: node server/src/server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3001"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SMS_PROVIDER
+        value: console
