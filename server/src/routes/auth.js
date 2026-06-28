@@ -29,13 +29,22 @@ router.post('/send-otp', async (req, res) => {
     }
 
     const phoneClean = phone.trim();
-    const otp = generateOtp();
-    otpStore.set(phoneClean, { otp, expiresAt: Date.now() + 5 * 60 * 1000 });
+    const localOtp = generateOtp();
+    otpStore.set(phoneClean, { otp: localOtp, expiresAt: Date.now() + 5 * 60 * 1000 });
 
-    sendOTP(phoneClean, otp).catch(err => console.warn(`[SMS] Background send failed: ${err.message}`));
+    const result = await sendOTP(phoneClean, localOtp);
 
+    if (!result.success) {
+      console.warn(`[SMS] Failed: ${result.error}`);
+    }
+
+    if (result.provider === 'rapidapi' && result.verify_code) {
+      otpStore.set(phoneClean, { otp: result.verify_code, expiresAt: Date.now() + 5 * 60 * 1000 });
+    }
+
+    const finalOtp = otpStore.get(phoneClean)?.otp;
     const isConsole = (process.env.SMS_PROVIDER || 'console') === 'console';
-    res.json({ message: 'OTP sent successfully', ...(isConsole ? { debug: otp } : {}) });
+    res.json({ message: 'OTP sent successfully', ...(isConsole ? { debug: finalOtp } : {}) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

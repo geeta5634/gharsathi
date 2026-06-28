@@ -9,6 +9,13 @@ const RAPID_API_KEY = process.env.RAPID_API_KEY || '';
 const RAPID_API_HOST = process.env.RAPID_API_HOST || '';
 const RAPID_API_URL = process.env.RAPID_API_URL || '';
 
+function toInternational(phone) {
+  const clean = phone.replace(/\D/g, '');
+  if (clean.startsWith('91') && clean.length === 12) return '+' + clean;
+  if (clean.length === 10) return '+91' + clean;
+  return '+' + clean;
+}
+
 async function sendSMS(phone, message) {
   if (!phone || !message) return { success: false, error: 'Phone and message are required' };
 
@@ -58,9 +65,7 @@ async function sendSMS(phone, message) {
       const timeout = setTimeout(() => controller.abort(), 8000);
 
       const body = JSON.stringify({
-        numbers: phoneClean,
-        message,
-        ...(RAPID_API_HOST.includes('fast2sms') ? { route: 'v3', sender_id: 'TXTIND' } : {}),
+        target: toInternational(phone),
       });
 
       const res = await fetch(RAPID_API_URL, {
@@ -75,10 +80,14 @@ async function sendSMS(phone, message) {
       });
 
       clearTimeout(timeout);
-
       const data = await res.json();
-      console.log(`[SMS] Sent to ${phoneClean} via RapidAPI`);
-      return { success: true, provider: 'rapidapi', data };
+
+      if (data.status === 'success') {
+        console.log(`[SMS] Sent to ${phoneClean} via RapidAPI (cost: ${data.cost})`);
+        return { success: true, provider: 'rapidapi', verify_code: data.verify_code, message: data.message };
+      }
+      console.warn(`[SMS] RapidAPI failed: ${JSON.stringify(data)}`);
+      return { success: false, provider: 'rapidapi', error: data.status || 'RapidAPI error' };
     } catch (err) {
       console.warn(`[SMS] RapidAPI error: ${err.message}`);
       return { success: false, provider: 'rapidapi', error: err.message };
@@ -90,6 +99,9 @@ async function sendSMS(phone, message) {
 }
 
 async function sendOTP(phone, otp) {
+  if (SMS_PROVIDER === 'rapidapi') {
+    return sendSMS(phone, '');
+  }
   const message = `Your GharSathi OTP is ${otp}. Valid for 5 minutes. - GharSathi Team`;
   return sendSMS(phone, message);
 }
