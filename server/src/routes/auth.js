@@ -34,7 +34,8 @@ router.post('/send-otp', async (req, res) => {
 
     sendOTP(phoneClean, otp).catch(err => console.warn(`[SMS] Background send failed: ${err.message}`));
 
-    res.json({ message: 'OTP sent successfully', debug: otp });
+    const isConsole = (process.env.SMS_PROVIDER || 'console') === 'console';
+    res.json({ message: 'OTP sent successfully', ...(isConsole ? { debug: otp } : {}) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
