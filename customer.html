@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GharSathi Customer App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #f3f4f6; }
+        .mobile-container { max-width: 480px; margin: 0 auto; background: white; min-height: 100vh; position: relative; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .bottom-nav { position: fixed; bottom: 0; max-width: 480px; width: 100%; background: white; border-top: 1px solid #e5e7eb; z-index: 50; }
+        .screen { display: none; animation: fadeIn 0.3s; }
+        .screen.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .service-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+        .worker-card:active { transform: scale(0.98); }
+        .timeline-item { position: relative; padding-left: 30px; }
+        .timeline-item::before { content: ''; position: absolute; left: 8px; top: 24px; bottom: -20px; width: 2px; background: #e5e7eb; }
+        .timeline-item:last-child::before { display: none; }
+        .timeline-dot { position: absolute; left: 0; top: 4px; width: 18px; height: 18px; border-radius: 50%; background: #3b82f6; border: 3px solid white; box-shadow: 0 0 0 2px #3b82f6; }
+        .timeline-dot.completed { background: #10b981; box-shadow: 0 0 0 2px #10b981; }
+        .timeline-dot.active { background: #f59e0b; box-shadow: 0 0 0 2px #f59e0b; }
+        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 100; padding: 12px 24px; border-radius: 12px; font-weight: 500; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: none; max-width: 400px; text-align: center; }
+        .toast.success { background: #10b981; color: white; }
+        .toast.error { background: #ef4444; color: white; }
+        .toast.info { background: #3b82f6; color: white; }
+        .otp-input { width: 48px; height: 56px; text-align: center; font-size: 24px; font-weight: 700; border: 2px solid #d1d5db; border-radius: 12px; outline: none; }
+        .otp-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.2); }
+        .loading-spinner { width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; display: inline-block; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="toast" id="toast"></div>
+    <div class="mobile-container pb-20">
+
+        <!-- Login Screen -->
+        <div id="login" class="screen min-h-screen flex flex-col justify-center px-6 bg-white">
+            <div class="text-center mb-8">
+                <div class="bg-blue-600 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                    <i data-lucide="home" class="w-10 h-10 text-white"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-800">GharSathi</h1>
+                <p class="text-gray-500 text-sm mt-1">Har Ghar Ka Sathi</p>
+                <p class="text-gray-400 text-xs mt-4">Customer App</p>
+            </div>
+            <div id="login-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Mobile Number</label>
+                    <input type="tel" id="login-phone" placeholder="Enter your mobile number" class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" maxlength="10" value="9876543210">
+                </div>
+                <div id="otp-section" class="hidden space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Enter OTP</label>
+                        <div class="flex justify-center gap-2" id="otp-inputs">
+                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="0" autofocus>
+                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="1">
+                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="2">
+                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="3">
+                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="4">
+                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="5">
+                        </div>
+                        <p class="text-xs text-gray-400 mt-2 text-center" id="otp-timer"></p>
+                        <p id="otp-display" class="text-center text-lg font-bold text-blue-600 mt-2 hidden"></p>
+                    </div>
+                    <div id="name-section" class="hidden">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Your Name (New User)</label>
+                        <input type="text" id="login-name" placeholder="Enter your name" class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <button onclick="verifyOtp()" id="verify-otp-btn" class="w-full bg-green-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-green-200 active:scale-95 transition">Verify & Login</button>
+                </div>
+                <button onclick="sendOtp()" id="send-otp-btn" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition">Send OTP</button>
+            </div>
+            <p class="text-center mt-8 text-sm text-gray-500">New here? <a href="index.html" class="text-blue-600 font-semibold">Learn More</a></p>
+        </div>
+
+        <header class="sticky top-0 z-40 bg-white px-4 py-3 shadow-sm flex justify-between items-center hidden" id="main-header">
+            <a href="index.html" class="flex items-center space-x-2">
+                <div class="bg-blue-600 p-1.5 rounded-lg">
+                    <i data-lucide="home" class="w-5 h-5 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-gray-800 text-lg leading-tight">GharSathi</h1>
+                    <p class="text-xs text-gray-500">Har Ghar Ka Sathi</p>
+                </div>
+            </a>
+            <div class="flex items-center space-x-3">
+                <div class="text-right">
+                    <p class="text-xs text-gray-500">Location</p>
+                    <div class="flex items-center text-sm font-semibold text-gray-800 cursor-pointer" onclick="toggleLocation()">
+                        <span id="current-location">Jodhpur, Rajasthan</span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 ml-1"></i>
+                    </div>
+                </div>
+                <div class="relative cursor-pointer" onclick="showScreen('bookings')">
+                    <i data-lucide="bell" class="w-6 h-6 text-gray-600"></i>
+                    <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center" id="notification-badge">0</span>
+                </div>
+                <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center cursor-pointer" onclick="showScreen('profile')">
+                    <span class="text-sm font-bold text-blue-600" id="header-avatar">U</span>
+                </div>
+            </div>
+        </header>
+
+        <div id="home" class="screen">
+            <div class="mx-4 mt-4 bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-4 text-white relative overflow-hidden shadow-lg cursor-pointer" onclick="showEmergency()">
+                <div class="absolute right-0 top-0 w-32 h-full bg-white/10 transform skew-x-12 translate-x-8"></div>
+                <div class="relative z-10 flex items-center justify-between">
+                    <div class="flex-1">
+                        <div class="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded inline-block mb-2">15 MIN</div>
+                        <h3 class="font-bold text-lg mb-1">EMERGENCY SERVICE</h3>
+                        <p class="text-sm text-blue-100">Hum aapke paas sirf 15 minute mein!</p>
+                    </div>
+                    <div class="bg-white/20 p-3 rounded-full backdrop-blur-sm">
+                        <i data-lucide="zap" class="w-8 h-8"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-4 mt-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-gray-800">Popular Services</h3>
+                    <button class="text-blue-600 text-sm font-medium" onclick="showScreen('services')">View All</button>
+                </div>
+                <div class="grid grid-cols-4 gap-3" id="home-services"></div>
+            </div>
+
+            <div class="px-4 mt-6">
+                <h3 class="font-bold text-gray-800 mb-4">Why Choose Us?</h3>
+                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                    <div class="grid grid-cols-4 gap-2 text-center">
+                        <div><div class="bg-blue-50 w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-1"><i data-lucide="shield-check" class="w-5 h-5 text-blue-600"></i></div><p class="text-xs text-gray-600">Verified</p></div>
+                        <div><div class="bg-green-50 w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-1"><i data-lucide="eye" class="w-5 h-5 text-green-600"></i></div><p class="text-xs text-gray-600">Transparent</p></div>
+                        <div><div class="bg-yellow-50 w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-1"><i data-lucide="clock" class="w-5 h-5 text-yellow-600"></i></div><p class="text-xs text-gray-600">On Time</p></div>
+                        <div><div class="bg-purple-50 w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-1"><i data-lucide="headphones" class="w-5 h-5 text-purple-600"></i></div><p class="text-xs text-gray-600">24x7</p></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-4 mt-6 mb-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-gray-800">My Bookings</h3>
+                    <button class="text-blue-600 text-sm font-medium" onclick="showScreen('bookings')">View All</button>
+                </div>
+                <div id="recent-bookings-list" class="space-y-3"></div>
+            </div>
+        </div>
+
+        <div id="services" class="screen">
+            <div class="sticky top-16 bg-white z-30 px-4 py-3 border-b">
+                <div class="relative">
+                    <i data-lucide="search" class="w-5 h-5 absolute left-3 top-2.5 text-gray-400"></i>
+                    <input type="text" id="service-search" placeholder="Search services..." oninput="filterServices()" class="w-full bg-gray-100 rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+            <div class="p-4 space-y-3" id="services-list"></div>
+        </div>
+
+        <div id="workers" class="screen">
+            <div class="sticky top-16 bg-white z-30 px-4 py-3 border-b flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <button onclick="showScreen('services')" class="p-2 -ml-2 hover:bg-gray-100 rounded-full"><i data-lucide="arrow-left" class="w-5 h-5 text-gray-600"></i></button>
+                    <h2 class="font-bold text-gray-800" id="workers-title">Available Workers</h2>
+                </div>
+                <div class="flex space-x-2">
+                    <button class="p-2 bg-gray-100 rounded-lg text-sm flex items-center text-gray-600" onclick="toggleAvailabilityFilter()"><i data-lucide="filter" class="w-4 h-4 mr-1"></i> <span id="filter-label">All</span></button>
+                </div>
+            </div>
+            <div class="p-4 space-y-4" id="workers-list"></div>
+        </div>
+
+        <div id="worker-details" class="screen">
+            <div class="relative">
+                <button onclick="showScreen('workers')" class="absolute top-4 left-4 z-10 bg-white/80 p-2 rounded-full shadow-lg"><i data-lucide="arrow-left" class="w-5 h-5 text-gray-800"></i></button>
+                <div class="bg-gray-200 h-48 flex items-center justify-center">
+                    <img id="worker-detail-image" src="" alt="Worker" class="w-full h-full object-cover">
+                </div>
+                <div class="px-4 -mt-12 relative">
+                    <div class="bg-white rounded-2xl shadow-lg p-4">
+                        <div class="flex items-start justify-between">
+                            <div>
+                                <div class="flex items-center space-x-2">
+                                    <h2 class="text-xl font-bold text-gray-800" id="worker-detail-name"></h2>
+                                    <span class="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full flex items-center"><i data-lucide="check-circle" class="w-3 h-3 mr-1"></i> Verified</span>
+                                </div>
+                                <p class="text-gray-500 text-sm mt-1" id="worker-detail-service"></p>
+                                <div class="flex items-center mt-2 space-x-4">
+                                    <div class="flex items-center text-yellow-500"><i data-lucide="star" class="w-4 h-4 fill-current"></i><span class="ml-1 text-sm font-bold text-gray-800" id="worker-detail-rating"></span><span class="text-xs text-gray-500 ml-1">(<span id="worker-detail-reviews">0</span> Reviews)</span></div>
+                                    <div class="flex items-center text-green-600"><i data-lucide="shield-check" class="w-4 h-4"></i><span class="ml-1 text-sm font-bold" id="worker-detail-trust">95%</span></div>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-2xl font-bold text-gray-800" id="worker-detail-price"></p>
+                                <p class="text-xs text-gray-500">Visit Charge</p>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <h4 class="font-semibold text-gray-800 mb-2">About</h4>
+                            <p class="text-sm text-gray-600 leading-relaxed" id="worker-detail-about"></p>
+                        </div>
+                        <div class="mt-4">
+                            <h4 class="font-semibold text-gray-800 mb-2">Skills</h4>
+                            <div class="flex flex-wrap gap-2" id="worker-detail-skills"></div>
+                        </div>
+                        <div class="mt-6 space-y-3">
+                            <button onclick="bookWorker()" class="w-full bg-blue-600 text-white py-3 rounded-full font-bold shadow-lg shadow-blue-200 active:scale-95 transition">Book Now</button>
+                            <div class="flex space-x-3">
+                                <button class="flex-1 border border-gray-300 py-3 rounded-full font-semibold text-gray-700 flex items-center justify-center space-x-2" onclick="callWorker()"><i data-lucide="phone" class="w-5 h-5"></i><span>Call</span></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="px-4 mt-6 pb-20">
+                    <h3 class="font-bold text-gray-800 mb-4">Customer Reviews</h3>
+                    <div class="space-y-4" id="reviews-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="booking" class="screen">
+            <div class="sticky top-16 bg-white z-30 px-4 py-3 border-b flex items-center">
+                <button onclick="showScreen('worker-details')" class="p-2 -ml-2 hover:bg-gray-100 rounded-full mr-2"><i data-lucide="arrow-left" class="w-5 h-5 text-gray-600"></i></button>
+                <h2 class="font-bold text-gray-800">Booking Details</h2>
+            </div>
+            <div class="p-4 space-y-4">
+                <div class="bg-blue-50 rounded-xl p-4 flex items-center space-x-3">
+                    <div class="bg-blue-500 w-12 h-12 rounded-full flex items-center justify-center text-white"><i data-lucide="droplet" class="w-6 h-6" id="booking-service-icon"></i></div>
+                    <div><p class="text-sm text-gray-500">Service</p><p class="font-bold text-gray-800" id="booking-service-name"></p></div>
+                </div>
+                <div class="bg-white rounded-xl border border-gray-200 p-4 flex items-center space-x-3">
+                    <img id="booking-worker-image" src="" class="w-12 h-12 rounded-full object-cover">
+                    <div class="flex-1"><p class="text-sm text-gray-500">Worker</p><p class="font-bold text-gray-800" id="booking-worker-name"></p></div>
+                    <div class="text-right"><p class="text-xs text-gray-500">Trust Score</p><div class="flex items-center text-green-600"><i data-lucide="shield-check" class="w-4 h-4 mr-1"></i><span class="font-bold" id="booking-trust">98%</span></div></div>
+                </div>
+                <div class="bg-white rounded-xl border border-gray-200 p-4">
+                    <div class="flex items-center justify-between mb-3"><p class="font-semibold text-gray-800">Date & Time</p></div>
+                    <div class="flex space-x-4">
+                        <div class="flex items-center space-x-2 text-gray-600"><i data-lucide="calendar" class="w-5 h-5 text-blue-500"></i><input type="date" id="booking-date-input" class="text-sm border-none focus:outline-none bg-transparent"></div>
+                        <div class="flex items-center space-x-2 text-gray-600"><i data-lucide="clock" class="w-5 h-5 text-orange-500"></i><input type="time" id="booking-time-input" class="text-sm border-none focus:outline-none bg-transparent"></div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl border border-gray-200 p-4">
+                    <div class="flex items-center justify-between mb-3"><p class="font-semibold text-gray-800">Address</p></div>
+                    <div class="flex items-start space-x-2 text-gray-600">
+                        <i data-lucide="map-pin" class="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0"></i>
+                        <textarea id="booking-address" rows="2" class="text-sm w-full border-none focus:outline-none bg-transparent resize-none">Shastri Nagar, Jodhpur, Rajasthan 342003</textarea>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl border border-gray-200 p-4">
+                    <p class="font-semibold text-gray-800 mb-3">Price Details</p>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between text-gray-600"><span>Visit Charge</span><span id="booking-visit-charge"></span></div>
+                        <div class="flex justify-between text-gray-600"><span>Service Charge (Est.)</span><span>&#8377;500</span></div>
+                        <div class="flex justify-between text-gray-600"><span>Platform Fee</span><span>&#8377;49</span></div>
+                        <div class="border-t pt-2 flex justify-between font-bold text-gray-800"><span>Total Amount</span><span id="booking-total"></span></div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl border border-gray-200 p-4">
+                    <p class="font-semibold text-gray-800 mb-3">Payment Method</p>
+                    <div class="space-y-3">
+                        <label class="flex items-center space-x-3 cursor-pointer"><input type="radio" name="payment" value="cash" checked class="w-4 h-4 text-blue-600"><span class="text-gray-700">Cash on Service</span></label>
+                        <label class="flex items-center space-x-3 cursor-pointer"><input type="radio" name="payment" value="online" class="w-4 h-4 text-blue-600"><span class="text-gray-700">Online Payment</span></label>
+                    </div>
+                </div>
+                <button onclick="confirmBooking()" id="confirm-booking-btn" class="w-full bg-green-600 text-white py-4 rounded-full font-bold shadow-lg shadow-green-200 active:scale-95 transition flex items-center justify-center">Confirm Booking</button>
+            </div>
+        </div>
+
+        <div id="tracking" class="screen">
+            <div class="sticky top-16 bg-white z-30 px-4 py-3 border-b flex items-center">
+                <button onclick="showScreen('home')" class="p-2 -ml-2 hover:bg-gray-100 rounded-full mr-2"><i data-lucide="arrow-left" class="w-5 h-5 text-gray-600"></i></button>
+                <div class="flex-1"><h2 class="font-bold text-gray-800">My Booking</h2><p class="text-xs text-gray-500" id="tracking-id">Booking ID: </p></div>
+            </div>
+            <div class="p-4">
+                <div class="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
+                    <div class="flex items-center justify-between">
+                        <div><p class="text-sm text-green-700 font-medium" id="tracking-status-text">Booking Confirmed</p><p class="text-xs text-green-600 mt-1" id="tracking-date-text"></p></div>
+                        <div class="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold" id="tracking-badge">Active</div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+                    <h3 class="font-bold text-gray-800 mb-4">Tracking</h3>
+                    <div class="space-y-0" id="tracking-timeline"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <button class="bg-blue-100 text-blue-700 py-3 rounded-xl font-semibold flex items-center justify-center space-x-2" onclick="chatWithWorker()"><i data-lucide="message-circle" class="w-5 h-5"></i><span>Chat</span></button>
+                    <button class="bg-green-100 text-green-700 py-3 rounded-xl font-semibold flex items-center justify-center space-x-2" onclick="callWorker()"><i data-lucide="phone" class="w-5 h-5"></i><span>Call</span></button>
+                </div>
+            </div>
+        </div>
+
+        <div id="bookings" class="screen">
+            <div class="px-4 py-4">
+                <h2 class="font-bold text-xl text-gray-800 mb-4">My Bookings</h2>
+                <div class="space-y-3" id="all-bookings-list"></div>
+            </div>
+        </div>
+
+        <div id="profile" class="screen">
+            <div class="px-4 py-4">
+                <h2 class="font-bold text-xl text-gray-800 mb-4">My Profile</h2>
+                <div class="bg-white rounded-2xl border border-gray-200 p-6 text-center mb-6">
+                    <div class="w-20 h-20 rounded-full mx-auto mb-3 bg-blue-100 flex items-center justify-center">
+                        <span class="text-3xl font-bold text-blue-600" id="profile-avatar-letter">U</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800" id="profile-name">User</h3>
+                    <p class="text-gray-500 text-sm" id="profile-phone"></p>
+                    <p class="text-gray-400 text-xs mt-1" id="profile-role">Customer</p>
+                </div>
+                <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 mb-6">
+                    <button class="w-full flex items-center justify-between p-4 hover:bg-gray-50" onclick="showScreen('home')"><span class="font-medium text-gray-800">My Bookings</span><i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i></button>
+                    <button class="w-full flex items-center justify-between p-4 hover:bg-gray-50" onclick="showToast('info', 'Support: 1800-123-4567')"><span class="font-medium text-gray-800">Help & Support</span><i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i></button>
+                    <button class="w-full flex items-center justify-between p-4 hover:bg-gray-50" onclick="logout()"><span class="font-medium text-red-600">Logout</span><i data-lucide="log-out" class="w-5 h-5 text-red-600"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <div class="fixed bottom-16 max-w-[480px] w-full left-1/2 -translate-x-1/2 text-center py-1 bg-white/80 backdrop-blur-sm text-xs z-40">
+            <a href="index.html" class="text-gray-400 hover:text-blue-500">GharSathi Home</a>
+        </div>
+        <nav class="bottom-nav px-6 py-2 flex justify-between items-center">
+            <button onclick="showScreen('home')" class="flex flex-col items-center space-y-1 text-blue-600 nav-item active" data-screen="home"><i data-lucide="home" class="w-6 h-6"></i><span class="text-xs">Home</span></button>
+            <button onclick="showScreen('bookings')" class="flex flex-col items-center space-y-1 text-gray-400 nav-item" data-screen="bookings"><i data-lucide="calendar" class="w-6 h-6"></i><span class="text-xs">Bookings</span></button>
+            <button onclick="showScreen('services')" class="flex flex-col items-center space-y-1 text-gray-400 nav-item" data-screen="services"><i data-lucide="grid-3x3" class="w-6 h-6"></i><span class="text-xs">Services</span></button>
+            <button onclick="showScreen('profile')" class="flex flex-col items-center space-y-1 text-gray-400 nav-item" data-screen="profile"><i data-lucide="user" class="w-6 h-6"></i><span class="text-xs">Profile</span></button>
+        </nav>
+    </div>
+
+    <script>
+        const API = window.location.origin + '/api';
+        let currentUser = null;
+        let token = localStorage.getItem('gs_token');
+        let currentService = null;
+        let selectedWorker = null;
+        let currentBooking = null;
+        let workersCache = [];
+        let servicesCache = [];
+        let otpTimer = null;
+        let otpCooldown = false;
+
+        async function apiFetch(path, opts = {}) {
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+            const res = await fetch(API + path, { ...opts, headers });
+            if (res.status === 401 && token) {
+                token = null; localStorage.removeItem('gs_token');
+                showScreen('login');
+                showToast('error', 'Session expired. Please login again.');
+                return null;
+            }
+            return res.json();
+        }
+
+        function showToast(type, msg) {
+            const t = document.getElementById('toast');
+            t.className = 'toast ' + type;
+            t.textContent = msg;
+            t.style.display = 'block';
+            setTimeout(() => t.style.display = 'none', 3000);
+        }
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            const target = document.getElementById(screenId);
+            if (target) { target.classList.add('active'); window.scrollTo(0, 0); }
+            document.querySelectorAll('.nav-item').forEach(item => {
+                if (item.dataset.screen === screenId) {
+                    item.classList.remove('text-gray-400'); item.classList.add('text-blue-600');
+                } else {
+                    item.classList.add('text-gray-400'); item.classList.remove('text-blue-600');
+                }
+            });
+            try { lucide.createIcons(); } catch(e) {}
+        }
+
+        function toggleLocation() {
+            const locs = ['Jodhpur, Rajasthan', 'Jaipur, Rajasthan', 'Udaipur, Rajasthan', 'Ajmer, Rajasthan'];
+            const cur = document.getElementById('current-location').textContent;
+            document.getElementById('current-location').textContent = locs[(locs.indexOf(cur) + 1) % locs.length];
+        }
+
+        async function loadServices() {
+            const data = await apiFetch('/services');
+            if (data) {
+                servicesCache = data;
+                renderServices(data);
+                renderHomeServices(data);
+            }
+        }
+
+        function renderHomeServices(services) {
+            const container = document.getElementById('home-services');
+            const icons = { plumber: 'droplet', electrician: 'zap', driver: 'car', maid: 'user', carpenter: 'hammer', painter: 'paintbrush', cleaning: 'sparkles' };
+            const cols = { plumber: 'blue', electrician: 'yellow', driver: 'green', maid: 'pink', carpenter: 'orange', painter: 'purple', cleaning: 'teal' };
+            container.innerHTML = services.slice(0, 7).map(s => {
+                const id = s.name.toLowerCase().includes('maid') ? 'maid' : s.name.toLowerCase().split(' ')[0];
+                return `<div class="text-center cursor-pointer" onclick="selectService('${s.id}')">
+                    <div class="service-icon bg-${cols[id] || 'gray'}-100 text-${cols[id] || 'gray'}-600 mx-auto mb-2"><i data-lucide="${icons[id] || 'wrench'}" class="w-6 h-6"></i></div>
+                    <p class="text-xs font-medium text-gray-700">${s.name}</p>
+                </div>`;
+            }).join('') + `<div class="text-center cursor-pointer" onclick="showScreen('services')">
+                <div class="service-icon bg-gray-100 text-gray-600 mx-auto mb-2"><i data-lucide="grid-3x3" class="w-6 h-6"></i></div>
+                <p class="text-xs font-medium text-gray-700">More</p>
+            </div>`;
+            try { lucide.createIcons(); } catch(e) {}
+        }
+
+        function renderServices(services) {
+            const container = document.getElementById('services-list');
+            const iconMap = { plumber: 'droplet', electrician: 'zap', driver: 'car', maid: 'user', carpenter: 'hammer', painter: 'paintbrush', cleaning: 'sparkles' };
+            container.innerHTML = services.map(s => {
+                const id = s.name.toLowerCase().includes('maid') ? 'maid' : s.name.toLowerCase().split(' ')[0];
+                return `<div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between cursor-pointer active:scale-95 transition" onclick="selectService('${s.id}')">
+                    <div class="flex items-center space-x-4">
+                        <div class="bg-${s.color}-100 w-12 h-12 rounded-xl flex items-center justify-center text-${s.color}-600"><i data-lucide="${iconMap[id] || 'wrench'}" class="w-6 h-6"></i></div>
+                        <div><h4 class="font-bold text-gray-800">${s.name}</h4><p class="text-xs text-gray-500">${s.description || ''}</p></div>
+                    </div>
+                    <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
+                </div>`;
+            }).join('');
+            try { lucide.createIcons(); } catch(e) {}
+        }
+
+        function filterServices() {
+            const q = document.getElementById('service-search').value.toLowerCase();
+            const filtered = servicesCache.filter(s => s.name.toLowerCase().includes(q));
+            renderServices(filtered);
+        }
+
+        async function selectService(serviceId) {
+            currentService = servicesCache.find(s => s.id === serviceId) || servicesCache[0];
+            document.getElementById('workers-title').textContent = currentService ? currentService.name + 's' : 'Workers';
+            showScreen('workers');
+            await loadWorkers(serviceId);
+        }
+
+        function showEmergency() {
+            const emSvc = servicesCache.find(s => s.name.toLowerCase() === 'plumber') || servicesCache[0];
+            if (emSvc) selectService(emSvc.id);
+        }
+
+        async function loadWorkers(serviceId, availableOnly = false) {
+            let url = '/workers';
+            const params = [];
+            if (serviceId) { params.push('service_id=' + serviceId); }
+            if (availableOnly) { params.push('available=true'); }
+            if (params.length) url += '?' + params.join('&');
+            const data = await apiFetch(url);
+            if (data) {
+                workersCache = data;
+                renderWorkers(data);
+            }
+        }
+
+        let filterAvailable = false;
+        function toggleAvailabilityFilter() {
+            filterAvailable = !filterAvailable;
+            document.getElementById('filter-label').textContent = filterAvailable ? 'Available' : 'All';
+            if (currentService) loadWorkers(currentService.id, filterAvailable);
+        }
+
+        function renderWorkers(workers) {
+            const container = document.getElementById('workers-list');
+            if (!workers.length) {
+                container.innerHTML = '<p class="text-center text-gray-500 py-8">No workers available right now</p>';
+                return;
+            }
+            container.innerHTML = workers.map(w => `
+                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 cursor-pointer worker-card" onclick="showWorkerDetails('${w.id}')">
+                    <div class="flex items-start space-x-4">
+                        <img src="${w.avatar || 'https://i.pravatar.cc/200?u=' + w.id}" class="w-20 h-20 rounded-xl object-cover">
+                        <div class="flex-1">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h4 class="font-bold text-gray-800">${w.name}</h4>
+                                    <div class="flex items-center space-x-2 mt-1">
+                                        <span class="bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5 rounded flex items-center"><i data-lucide="star" class="w-3 h-3 mr-1 fill-current"></i> ${w.rating} (${w.reviews_count})</span>
+                                        <span class="text-xs text-gray-500">• ${w.experience} Exp.</span>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <p class="font-bold text-gray-800">₹${w.visit_charge}</p>
+                                    <p class="text-xs text-gray-500">Visit Charge</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between mt-3">
+                                <span class="${w.available ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'} text-xs px-3 py-1 rounded-full font-medium">${w.available ? 'Available' : 'Busy'}</span>
+                                <button class="bg-blue-600 text-white px-4 py-1.5 rounded-full text-sm font-medium" onclick="event.stopPropagation();showWorkerDetails('${w.id}')">Book</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            try { lucide.createIcons(); } catch(e) {}
+        }
+
+        function showWorkerDetails(workerId) {
+            selectedWorker = workersCache.find(w => w.id === workerId);
+            if (!selectedWorker) return;
+            const w = selectedWorker;
+            document.getElementById('worker-detail-name').textContent = w.name;
+            document.getElementById('worker-detail-service').textContent = `${w.service_name} • ${w.experience} Experience`;
+            document.getElementById('worker-detail-rating').textContent = w.rating;
+            document.getElementById('worker-detail-reviews').textContent = w.reviews_count || 0;
+            document.getElementById('worker-detail-trust').textContent = (w.trust_score || 95) + '%';
+            document.getElementById('worker-detail-price').textContent = '₹' + w.visit_charge;
+            document.getElementById('worker-detail-image').src = w.avatar || 'https://i.pravatar.cc/200?u=' + w.id;
+            document.getElementById('worker-detail-about').textContent = w.about || 'Professional and experienced worker.';
+            document.getElementById('worker-detail-skills').innerHTML = (w.skills || []).map(s => `<span class="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-medium">${s}</span>`).join('');
+            loadReviews(w.id);
+            showScreen('worker-details');
+            try { lucide.createIcons(); } catch(e) {}
+        }
+
+        async function loadReviews(workerId) {
+            const reviews = document.getElementById('reviews-list');
+            reviews.innerHTML = '<p class="text-center text-gray-400 text-sm py-4">Loading reviews...</p>';
+        }
+
+        function bookWorker() {
+            if (!selectedWorker || !currentService) return;
+            const w = selectedWorker;
+            document.getElementById('booking-service-name').textContent = currentService.name;
+            document.getElementById('booking-service-icon').setAttribute('data-lucide', currentService.icon || 'wrench');
+            document.getElementById('booking-worker-name').textContent = w.name;
+            document.getElementById('booking-worker-image').src = w.avatar || 'https://i.pravatar.cc/200?u=' + w.id;
+            document.getElementById('booking-visit-charge').textContent = '₹' + w.visit_charge;
+            document.getElementById('booking-total').textContent = '₹' + (w.visit_charge + 549);
+            document.getElementById('booking-trust').textContent = (w.trust_score || 95) + '%';
+            const today = new Date();
+            document.getElementById('booking-date-input').value = today.toISOString().split('T')[0];
+            document.getElementById('booking-time-input').value = '10:00';
+            showScreen('booking');
+            try { lucide.createIcons(); } catch(e) {}
+        }
+
+        async function confirmBooking() {
+            if (!currentUser) { showToast('error', 'Please login first'); showScreen('login'); return; }
+            if (!selectedWorker || !currentService) return;
+
+            const btn = document.getElementById('confirm-booking-btn');
+            btn.innerHTML = '<span class="loading-spinner"></span> Booking...';
+            btn.disabled = true;
+
+            const data = await apiFetch('/bookings', {
+                method: 'POST',
+                body: JSON.stringify({
+                    service_id: currentService.id,
+                    worker_id: selectedWorker.id,
+                    booking_date: document.getElementById('booking-date-input').value,
+                    booking_time: document.getElementById('booking-time-input').value,
+                    address: document.getElementById('booking-address').value,
+                    visit_charge: selectedWorker.visit_charge,
+                })
+            });
+
+            btn.innerHTML = 'Confirm Booking';
+            btn.disabled = false;
+
+            if (data && data.id) {
+                currentBooking = data;
+                showToast('success', 'Booking confirmed!');
+                showTracking(data);
+                await loadMyBookings();
+            }
+        }
+
+        function showTracking(booking) {
+            document.getElementById('tracking-id').textContent = 'Booking ID: #' + booking.id;
+            document.getElementById('tracking-status-text').textContent = 'Booking Confirmed';
+            document.getElementById('tracking-date-text').textContent = new Date().toLocaleString();
+            document.getElementById('tracking-badge').textContent = 'Active';
+            const timeline = [
+                { label: 'Booking Confirmed', time: new Date().toLocaleString(), status: 'completed' },
+                { label: 'Worker Assigned', time: selectedWorker ? selectedWorker.name : 'Pending', status: 'active' },
+                { label: 'Worker On The Way', time: 'Waiting...', status: 'pending' },
+                { label: 'Service Started', time: 'Pending', status: 'pending' },
+                { label: 'Completed', time: 'Pending', status: 'pending' },
+            ];
+            document.getElementById('tracking-timeline').innerHTML = timeline.map(t => `
+                <div class="timeline-item pb-6">
+                    <div class="timeline-dot ${t.status}"></div>
+                    <div><p class="font-semibold text-gray-800">${t.label}</p><p class="text-xs text-gray-500">${t.time}</p></div>
+                </div>
+            `).join('');
+            showScreen('tracking');
+        }
+
+        async function loadMyBookings() {
+            const data = await apiFetch('/bookings');
+            if (!data) return;
+            const container = document.getElementById('all-bookings-list');
+            if (!data.length) {
+                container.innerHTML = '<p class="text-center text-gray-500 py-8 text-sm">No bookings yet</p>';
+            } else {
+                container.innerHTML = data.map(b => `
+                    <div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100 flex items-center space-x-3 cursor-pointer" onclick="showTrackingDetail('${b.id}')">
+                        <div class="bg-${b.service_color || 'blue'}-100 w-10 h-10 rounded-full flex items-center justify-center text-${b.service_color || 'blue'}-600"><i data-lucide="${b.service_icon || 'wrench'}" class="w-5 h-5"></i></div>
+                        <div class="flex-1"><p class="font-semibold text-sm text-gray-800">${b.service_name}</p><p class="text-xs text-gray-500">${b.booking_date} • ${b.booking_time}</p></div>
+                        <span class="${b.status === 'completed' ? 'bg-green-100 text-green-700' : b.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'} text-xs px-2 py-1 rounded-full capitalize">${b.status}</span>
+                    </div>
+                `).join('');
+            }
+            // Update recent bookings on home screen
+            const recent = document.getElementById('recent-bookings-list');
+            if (data.length) {
+                recent.innerHTML = data.slice(0, 2).map(b => `
+                    <div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100 flex items-center space-x-3 cursor-pointer" onclick="showTrackingDetail('${b.id}')">
+                        <div class="bg-blue-100 w-10 h-10 rounded-full flex items-center justify-center text-blue-600"><i data-lucide="${b.service_icon || 'wrench'}" class="w-5 h-5"></i></div>
+                        <div class="flex-1"><p class="font-semibold text-sm text-gray-800">${b.service_name}</p><p class="text-xs text-gray-500">${b.booking_date}</p></div>
+                        <span class="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full capitalize">${b.status}</span>
+                    </div>
+                `).join('');
+            } else {
+                recent.innerHTML = '<p class="text-center text-gray-500 py-4 text-sm">No bookings yet</p>';
+            }
+            document.getElementById('notification-badge').textContent = data.filter(b => b.status === 'pending' || b.status === 'confirmed').length;
+            try { lucide.createIcons(); } catch(e) {}
+        }
+
+        async function showTrackingDetail(bookingId) {
+            const data = await apiFetch('/bookings/' + bookingId);
+            if (data) {
+                currentBooking = data;
+                showTracking(data);
+            }
+        }
+
+        function callWorker() {
+            if (selectedWorker) showToast('info', 'Calling ' + selectedWorker.name + '...');
+            else showToast('info', 'Customer support: 1800-123-4567');
+        }
+
+        function chatWithWorker() {
+            showToast('info', 'Chat feature coming soon!');
+        }
+
+        // OTP Login
+        async function sendOtp() {
+            const phone = document.getElementById('login-phone').value.trim();
+            if (!phone || phone.length < 10) { showToast('error', 'Enter a valid 10-digit mobile number'); return; }
+
+            const btn = document.getElementById('send-otp-btn');
+            btn.innerHTML = '<span class="loading-spinner"></span> Sending...';
+            btn.disabled = true;
+
+            const data = await apiFetch('/auth/send-otp', {
+                method: 'POST',
+                body: JSON.stringify({ phone })
+            });
+
+            btn.innerHTML = 'Send OTP';
+            btn.disabled = false;
+
+            if (data && data.message) {
+                document.getElementById('otp-section').classList.remove('hidden');
+                document.getElementById('send-otp-btn').textContent = 'Resend OTP';
+                const otpDisplay = document.getElementById('otp-display');
+                if (data.debug) { otpDisplay.textContent = 'Your OTP: ' + data.debug; otpDisplay.style.display = 'block'; }
+                showToast('success', 'OTP sent!');
+                otpCooldown = true;
+                let sec = 30;
+                const t = document.getElementById('otp-timer');
+                if (otpTimer) clearInterval(otpTimer);
+                otpTimer = setInterval(() => {
+                    sec--;
+                    t.textContent = sec > 0 ? `Resend in ${sec}s` : '';
+                    if (sec <= 0) { clearInterval(otpTimer); btn.disabled = false; otpCooldown = false; }
+                }, 1000);
+                document.querySelector('.otp-input').focus();
+                setupOtpInputs();
+            }
+        }
+
+        function setupOtpInputs() {
+            const inputs = document.querySelectorAll('.otp-input');
+            inputs.forEach((input, idx) => {
+                input.addEventListener('input', function() {
+                    if (this.value && idx < inputs.length - 1) inputs[idx + 1].focus();
+                    const allFilled = Array.from(inputs).every(i => i.value);
+                    if (allFilled) setTimeout(verifyOtp, 200);
+                });
+                input.addEventListener('keydown', function(e) {
+                    if (e.key === 'Backspace' && !this.value && idx > 0) inputs[idx - 1].focus();
+                    if (e.key === 'Enter') verifyOtp();
+                });
+            });
+            document.getElementById('otp-display').onclick = function() {
+                const otp = this.textContent.replace('Your OTP: ', '').trim();
+                if (otp.length === 6) {
+                    inputs.forEach((inp, i) => { inp.value = otp[i]; });
+                    setTimeout(verifyOtp, 200);
+                }
+            };
+        }
+
+        async function verifyOtp() {
+            const phone = document.getElementById('login-phone').value.trim();
+            const otp = Array.from(document.querySelectorAll('.otp-input')).map(i => i.value).join('');
+            const name = document.getElementById('login-name').value.trim();
+
+            if (otp.length !== 6) { showToast('error', 'Enter complete 6-digit OTP'); return; }
+
+            const btn = document.getElementById('verify-otp-btn');
+            btn.innerHTML = '<span class="loading-spinner"></span> Verifying...';
+            btn.disabled = true;
+
+            const body = { phone, otp };
+            if (name) body.name = name;
+
+            const data = await apiFetch('/auth/verify-otp', {
+                method: 'POST',
+                body: JSON.stringify(body)
+            });
+
+            btn.innerHTML = 'Verify & Login';
+            btn.disabled = false;
+
+            if (data && data.token) {
+                token = data.token;
+                currentUser = data.user;
+                localStorage.setItem('gs_token', token);
+                localStorage.setItem('gs_user', JSON.stringify(data.user));
+                if (data.isNew && !name) {
+                    document.getElementById('name-section').classList.remove('hidden');
+                    document.getElementById('name-section').querySelector('input').focus();
+                    showToast('info', 'New user! Please enter your name.');
+                    return;
+                }
+                onLoginSuccess();
+            }
+        }
+
+        function onLoginSuccess() {
+            document.getElementById('login').classList.remove('active');
+            document.getElementById('login').style.display = 'none';
+            document.getElementById('main-header').classList.remove('hidden');
+            document.getElementById('profile-name').textContent = currentUser.name || 'User';
+            document.getElementById('profile-phone').textContent = currentUser.phone;
+            const initial = (currentUser.name || 'U')[0].toUpperCase();
+            document.getElementById('profile-avatar-letter').textContent = initial;
+            document.getElementById('header-avatar').textContent = initial;
+            showScreen('home');
+            loadServices();
+            loadMyBookings();
+            showToast('success', 'Welcome, ' + (currentUser.name || 'User') + '!');
+        }
+
+        function logout() {
+            token = null;
+            currentUser = null;
+            localStorage.removeItem('gs_token');
+            localStorage.removeItem('gs_user');
+            document.getElementById('login').style.display = 'flex';
+            document.getElementById('login').classList.add('active');
+            document.getElementById('main-header').classList.add('hidden');
+            document.getElementById('otp-section').classList.add('hidden');
+            document.getElementById('name-section').classList.add('hidden');
+            showToast('info', 'Logged out successfully');
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            document.querySelectorAll('.otp-input').forEach((input, idx, arr) => {
+                input.addEventListener('input', function() { if (this.value && idx < arr.length - 1) arr[idx + 1].focus(); });
+                input.addEventListener('keydown', function(e) { if (e.key === 'Backspace' && !this.value && idx > 0) arr[idx - 1].focus(); if (e.key === 'Enter') verifyOtp(); });
+            });
+
+            setupOtpInputs();
+
+            if (token) {
+                const data = await apiFetch('/auth/me');
+                if (data && data.id) {
+                    currentUser = data;
+                    onLoginSuccess();
+                } else {
+                    token = null;
+                    localStorage.removeItem('gs_token');
+                    showScreen('login');
+                }
+            } else {
+                showScreen('login');
+            }
+            try { lucide.createIcons(); } catch(e) {}
+        });
+    </script>
+</body>
+</html>

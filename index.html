@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GharSathi - Har Ghar Ka Sathi | Home Services</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .gradient-bg { background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); }
+        .glass-effect { backdrop-filter: blur(10px); background: rgba(255, 255, 255, 0.9); }
+        .service-card:hover { transform: translateY(-5px); transition: all 0.3s ease; }
+        .emergency-pulse { animation: pulse-border 2s infinite; }
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+
+    <nav class="gradient-bg text-white sticky top-0 z-50 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center space-x-2">
+                    <div class="bg-white p-2 rounded-lg">
+                        <i data-lucide="home" class="w-6 h-6 text-blue-600"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold">GharSathi</h1>
+                        <p class="text-xs text-blue-100">Har Ghar Ka Sathi</p>
+                    </div>
+                </div>
+                <div class="hidden md:flex space-x-8">
+                    <a href="#services" class="hover:text-blue-200 transition">Services</a>
+                    <a href="#features" class="hover:text-blue-200 transition">Features</a>
+                    <a href="customer.html" class="bg-white text-blue-600 px-4 py-2 rounded-full font-medium hover:bg-blue-50 transition">Customer App</a>
+                    <a href="worker.html" class="bg-blue-700 text-white px-4 py-2 rounded-full font-medium hover:bg-blue-800 transition">Worker App</a>
+                    <a href="admin.html" class="bg-green-600 text-white px-4 py-2 rounded-full font-medium hover:bg-green-700 transition">Admin</a>
+                </div>
+                <button class="md:hidden" onclick="toggleMobileMenu()">
+                    <i data-lucide="menu" class="w-6 h-6"></i>
+                </button>
+            </div>
+        </div>
+        <div id="mobile-menu" class="hidden md:hidden bg-blue-800 pb-4 px-4">
+            <a href="customer.html" class="block py-2 text-white">Customer App</a>
+            <a href="worker.html" class="block py-2 text-white">Worker App</a>
+            <a href="admin.html" class="block py-2 text-white">Admin Panel</a>
+        </div>
+    </nav>
+
+    <div class="gradient-bg text-white pt-16 pb-24 px-4">
+        <div class="max-w-7xl mx-auto grid md:grid-cols-2 gap-12 items-center">
+            <div>
+                <div class="inline-block bg-red-500 text-white px-4 py-1 rounded-full text-sm font-bold mb-4 emergency-pulse">
+                    &#9889; 15 MIN Emergency Service Available
+                </div>
+                <h2 class="text-4xl md:text-6xl font-bold mb-6 leading-tight">
+                    Your Home's Best Friend
+                </h2>
+                <p class="text-xl text-blue-100 mb-8">
+                    Professional home services at your fingertips. Verified workers, transparent pricing, and guaranteed satisfaction.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <a href="customer.html" class="bg-white text-blue-600 px-8 py-4 rounded-full font-bold text-center hover:bg-blue-50 transition shadow-lg">
+                        Book a Service
+                    </a>
+                    <a href="worker.html" class="bg-blue-700 border-2 border-blue-500 text-white px-8 py-4 rounded-full font-bold text-center hover:bg-blue-800 transition">
+                        Join as Worker
+                    </a>
+                </div>
+                <div class="mt-8 flex items-center space-x-4 text-sm">
+                    <div class="flex items-center">
+                        <i data-lucide="shield-check" class="w-5 h-5 mr-1"></i>
+                        <span>Verified Workers</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i data-lucide="clock" class="w-5 h-5 mr-1"></i>
+                        <span>On Time</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i data-lucide="star" class="w-5 h-5 mr-1"></i>
+                        <span>4.8/5 Rating</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section id="services" class="max-w-7xl mx-auto px-4 -mt-12">
+        <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8">
+            <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center">All Home Services</h3>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <div class="service-card bg-blue-50 p-6 rounded-xl text-center cursor-pointer hover:bg-blue-100 transition" onclick="selectService('plumber')">
+                    <div class="bg-blue-500 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 text-white">
+                        <i data-lucide="droplet" class="w-6 h-6"></i>
+                    </div>
+                    <p class="font-semibold text-gray-700">Plumber</p>
+                </div>
+                <div class="service-card bg-yellow-50 p-6 rounded-xl text-center cursor-pointer hover:bg-yellow-100 transition" onclick="selectService('electrician')">
+                    <div class="bg-yellow-500 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 text-white">
+                        <i data-lucide="zap" class="w-6 h-6"></i>
+                    </div>
+                    <p class="font-semibold text-gray-700">Electrician</p>
+                </div>
+                <div class="service-card bg-green-50 p-6 rounded-xl text-center cursor-pointer hover:bg-green-100 transition" onclick="selectService('driver')">
+                    <div class="bg-green-500 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 text-white">
+                        <i data-lucide="car" class="w-6 h-6"></i>
+                    </div>
+                    <p class="font-semibold text-gray-700">Driver</p>
+                </div>
+                <div class="service-card bg-pink-50 p-6 rounded-xl text-center cursor-pointer hover:bg-pink-100 transition" onclick="selectService('maid')">
+                    <div class="bg-pink-500 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 text-white">
+                        <i data-lucide="user" class="w-6 h-6"></i>
+                    </div>
+                    <p class="font-semibold text-gray-700">Maid/Bai</p>
+                </div>
+                <div class="service-card bg-orange-50 p-6 rounded-xl text-center cursor-pointer hover:bg-orange-100 transition" onclick="selectService('carpenter')">
+                    <div class="bg-orange-500 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 text-white">
+                        <i data-lucide="hammer" class="w-6 h-6"></i>
+                    </div>
+                    <p class="font-semibold text-gray-700">Carpenter</p>
+                </div>
+                <div class="service-card bg-purple-50 p-6 rounded-xl text-center cursor-pointer hover:bg-purple-100 transition" onclick="selectService('painter')">
+                    <div class="bg-purple-500 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 text-white">
+                        <i data-lucide="paintbrush" class="w-6 h-6"></i>
+                    </div>
+                    <p class="font-semibold text-gray-700">House Painter</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="max-w-7xl mx-auto px-4 py-16">
+        <div class="grid md:grid-cols-2 gap-12 items-center">
+            <div>
+                <h3 class="text-3xl font-bold text-gray-800 mb-6">Kyun Chune GharSathi?</h3>
+                <div class="space-y-4">
+                    <div class="flex items-start space-x-3">
+                        <div class="bg-green-100 p-2 rounded-full text-green-600 mt-1">
+                            <i data-lucide="check" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-800">Verified & Police Verified Workers</h4>
+                            <p class="text-gray-600 text-sm">All workers go through strict background checks</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start space-x-3">
+                        <div class="bg-green-100 p-2 rounded-full text-green-600 mt-1">
+                            <i data-lucide="check" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-800">15 Minute Emergency Service</h4>
+                            <p class="text-gray-600 text-sm">Urgent repairs within 15 minutes response</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start space-x-3">
+                        <div class="bg-green-100 p-2 rounded-full text-green-600 mt-1">
+                            <i data-lucide="check" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-800">Transparent Pricing</h4>
+                            <p class="text-gray-600 text-sm">No hidden charges, upfront pricing</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start space-x-3">
+                        <div class="bg-green-100 p-2 rounded-full text-green-600 mt-1">
+                            <i data-lucide="check" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-800">24x7 Customer Support</h4>
+                            <p class="text-gray-600 text-sm">Always here to help you</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-blue-600 text-white p-6 rounded-2xl text-center">
+                    <i data-lucide="users" class="w-10 h-10 mx-auto mb-2"></i>
+                    <p class="text-3xl font-bold">10,000+</p>
+                    <p class="text-blue-100">Verified Workers</p>
+                </div>
+                <div class="bg-green-600 text-white p-6 rounded-2xl text-center">
+                    <i data-lucide="calendar-check" class="w-10 h-10 mx-auto mb-2"></i>
+                    <p class="text-3xl font-bold">50,000+</p>
+                    <p class="text-green-100">Services Completed</p>
+                </div>
+                <div class="bg-purple-600 text-white p-6 rounded-2xl text-center">
+                    <i data-lucide="smile" class="w-10 h-10 mx-auto mb-2"></i>
+                    <p class="text-3xl font-bold">98%</p>
+                    <p class="text-purple-100">Happy Customers</p>
+                </div>
+                <div class="bg-orange-600 text-white p-6 rounded-2xl text-center">
+                    <i data-lucide="map-pin" class="w-10 h-10 mx-auto mb-2"></i>
+                    <p class="text-3xl font-bold">25+</p>
+                    <p class="text-orange-100">Cities Covered</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="features" class="bg-white py-16">
+        <div class="max-w-7xl mx-auto px-4">
+            <h3 class="text-3xl font-bold text-center text-gray-800 mb-12">Unique & New Features</h3>
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div class="bg-gradient-to-br from-red-50 to-red-100 p-6 rounded-2xl border border-red-200">
+                    <div class="bg-red-500 text-white w-14 h-14 rounded-full flex items-center justify-center mb-4">
+                        <i data-lucide="timer" class="w-7 h-7"></i>
+                    </div>
+                    <h4 class="text-xl font-bold text-gray-800 mb-2">15 Minute Emergency</h4>
+                    <p class="text-gray-600 text-sm">Plumber, Electrician, Locksmith jaise emergency service sirf 15 minute mein aapke paas.</p>
+                </div>
+                <div class="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-2xl border border-green-200">
+                    <div class="bg-green-500 text-white w-14 h-14 rounded-full flex items-center justify-center mb-4">
+                        <i data-lucide="shield" class="w-7 h-7"></i>
+                    </div>
+                    <h4 class="text-xl font-bold text-gray-800 mb-2">Worker Trust Score</h4>
+                    <p class="text-gray-600 text-sm">Har worker ka trust score hota hai jo uske kaam, reviews aur time par aane ke base par banta hai.</p>
+                </div>
+                <div class="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-2xl border border-purple-200">
+                    <div class="bg-purple-500 text-white w-14 h-14 rounded-full flex items-center justify-center mb-4">
+                        <i data-lucide="brain" class="w-7 h-7"></i>
+                    </div>
+                    <h4 class="text-xl font-bold text-gray-800 mb-2">AI Problem Detection</h4>
+                    <p class="text-gray-600 text-sm">Photo upload karein, AI batayega kaunsa problem hai aur kis type ka worker chahiye.</p>
+                </div>
+                <div class="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-2xl border border-blue-200">
+                    <div class="bg-blue-500 text-white w-14 h-14 rounded-full flex items-center justify-center mb-4">
+                        <i data-lucide="file-text" class="w-7 h-7"></i>
+                    </div>
+                    <h4 class="text-xl font-bold text-gray-800 mb-2">Ghar Ka Health Record</h4>
+                    <p class="text-gray-600 text-sm">Apne ghar ki saari service history rakhein, reminders paayein aur maintenance kab due hai ye jaanein.</p>
+                </div>
+                <div class="bg-gradient-to-br from-yellow-50 to-yellow-100 p-6 rounded-2xl border border-yellow-200">
+                    <div class="bg-yellow-500 text-white w-14 h-14 rounded-full flex items-center justify-center mb-4">
+                        <i data-lucide="crown" class="w-7 h-7"></i>
+                    </div>
+                    <h4 class="text-xl font-bold text-gray-800 mb-2">Membership Plan</h4>
+                    <p class="text-gray-600 text-sm">Mahine ka subscription lein aur paayein priority service, free visits aur special discounts.</p>
+                </div>
+                <div class="bg-gradient-to-br from-indigo-50 to-indigo-100 p-6 rounded-2xl border border-indigo-200">
+                    <div class="bg-indigo-500 text-white w-14 h-14 rounded-full flex items-center justify-center mb-4">
+                        <i data-lucide="users" class="w-7 h-7"></i>
+                    </div>
+                    <h4 class="text-xl font-bold text-gray-800 mb-2">Neighborhood Network</h4>
+                    <p class="text-gray-600 text-sm">Apne area ke log workers ko recommend karein aur trusted network banayein.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="bg-gray-50 py-16">
+        <div class="max-w-7xl mx-auto px-4">
+            <h3 class="text-3xl font-bold text-center text-gray-800 mb-4">Membership Plans</h3>
+            <p class="text-center text-gray-600 mb-12">Choose the perfect plan for your home maintenance needs</p>
+            <div class="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                <div class="bg-white rounded-2xl shadow-lg p-8 border border-gray-200 hover:shadow-xl transition">
+                    <div class="text-center mb-6">
+                        <h4 class="text-xl font-bold text-gray-800 mb-2">BASIC</h4>
+                        <div class="text-4xl font-bold text-blue-600">&#8377;99<span class="text-lg text-gray-500">/Month</span></div>
+                    </div>
+                    <ul class="space-y-3 mb-8 text-sm text-gray-600">
+                        <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 mr-2 text-green-500"></i> Priority Booking</li>
+                        <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 mr-2 text-green-500"></i> 1 Free Visit/Month</li>
+                        <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 mr-2 text-green-500"></i> Up to 10% Discount</li>
+                        <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 mr-2 text-green-500"></i> 24x7 Support</li>
+                    </ul>
+                    <button class="w-full border-2 border-blue-600 text-blue-600 py-3 rounded-full font-bold hover:bg-blue-50 transition">Choose Plan</button>
+                </div>
+                <div class="bg-blue-600 rounded-2xl shadow-lg p-8 border border-blue-500 transform scale-105 relative">
+                    <div class="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-2xl">POPULAR</div>
+                    <div class="text-center mb-6">
+                        <h4 class="text-xl font-bold text-white mb-2">PREMIUM</h4>
+                        <div class="text-4xl font-bold text-white">&#8377;199<span class="text-lg text-blue-200">/Month</span></div>
+                    </div>
+                    <ul class="space-y-3 mb-8 text-sm text-blue-100">
+                        <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 mr-2 text-yellow-400"></i> Priority Booking</li>
+                        <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 mr-2 text-yellow-400"></i> 2 Free Visits/Month</li>
+                        <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 mr-2 text-yellow-400"></i> Up to 20% Discount</li>
+                        <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 mr-2 text-yellow-400"></i> 24x7 Support</li>
+                        <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 mr-2 text-yellow-400"></i> Service Reminders</li>
+                    </ul>
+                    <button class="w-full bg-white text-blue-600 py-3 rounded-full font-bold hover:bg-blue-50 transition">Choose Plan</button>
+                </div>
+                <div class="bg-white rounded-2xl shadow-lg p-8 border border-gray-200 hover:shadow-xl transition">
+                    <div class="text-center mb-6">
+                        <h4 class="text-xl font-bold text-gray-800 mb-2">VIP</h4>
+                        <div class="text-4xl font-bold text-purple-600">&#8377;299<span class="text-lg text-gray-500">/Month</span></div>
+                    </div>
+                    <ul class="space-y-3 mb-8 text-sm text-gray-600">
+                        <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 mr-2 text-green-500"></i> Priority Booking</li>
+                        <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 mr-2 text-green-500"></i> 4 Free Visits/Month</li>
+                        <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 mr-2 text-green-500"></i> Up to 30% Discount</li>
+                        <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 mr-2 text-green-500"></i> 24x7 Support</li>
+                        <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 mr-2 text-green-500"></i> Annual Health Check</li>
+                    </ul>
+                    <button class="w-full border-2 border-purple-600 text-purple-600 py-3 rounded-full font-bold hover:bg-purple-50 transition">Choose Plan</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="bg-gray-900 text-white py-12">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="grid md:grid-cols-4 gap-8 mb-8">
+                <div>
+                    <div class="flex items-center space-x-2 mb-4">
+                        <div class="bg-blue-600 p-2 rounded-lg">
+                            <i data-lucide="home" class="w-6 h-6 text-white"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-xl font-bold">GharSathi</h4>
+                            <p class="text-xs text-gray-400">Har Ghar Ka Sathi</p>
+                        </div>
+                    </div>
+                    <p class="text-gray-400 text-sm">Making home maintenance easy, reliable, and trustworthy for every Indian household.</p>
+                </div>
+                <div>
+                    <h5 class="font-bold mb-4">Services</h5>
+                    <ul class="space-y-2 text-sm text-gray-400">
+                        <li><a href="customer.html?service=plumber" class="hover:text-white">Plumbing</a></li>
+                        <li><a href="customer.html?service=electrician" class="hover:text-white">Electrical</a></li>
+                        <li><a href="customer.html?service=carpenter" class="hover:text-white">Carpentry</a></li>
+                        <li><a href="customer.html?service=cleaning" class="hover:text-white">Cleaning</a></li>
+                        <li><a href="customer.html" class="hover:text-white text-blue-400">View All</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h5 class="font-bold mb-4">Quick Links</h5>
+                    <ul class="space-y-2 text-sm text-gray-400">
+                        <li><a href="customer.html" class="hover:text-white">Book a Service</a></li>
+                        <li><a href="worker.html" class="hover:text-white">Join as Worker</a></li>
+                        <li><a href="admin.html" class="hover:text-white">Admin Panel</a></li>
+                        <li><a href="#features" class="hover:text-white">Features</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h5 class="font-bold mb-4">Contact</h5>
+                    <ul class="space-y-2 text-sm text-gray-400">
+                        <li class="flex items-center"><i data-lucide="phone" class="w-4 h-4 mr-2"></i> 1800-123-4567</li>
+                        <li class="flex items-center"><i data-lucide="mail" class="w-4 h-4 mr-2"></i> support@gharsathi.com</li>
+                        <li class="flex items-center"><i data-lucide="map-pin" class="w-4 h-4 mr-2"></i> Jodhpur, Rajasthan</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center">
+                <p class="text-gray-500 text-sm">&copy; 2024 GharSathi. All rights reserved.</p>
+                <div class="flex space-x-4 mt-4 md:mt-0">
+                    <div class="flex items-center space-x-2 text-sm text-gray-400">
+                        <span>Safe</span><span>|</span><span>Trusted</span><span>|</span><span>Verified</span><span>|</span><span>On Time</span>
+                    </div>
+                </div>
+            </div>
+            <p class="text-center text-gray-600 text-sm mt-4">GharSathi ke saath, har ghar ki tension khatam!</p>
+        </div>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+        function toggleMobileMenu() {
+            document.getElementById('mobile-menu').classList.toggle('hidden');
+        }
+        function selectService(service) {
+            window.location.href = 'customer.html?service=' + service;
+        }
+    </script>
+</body>
+</html>
