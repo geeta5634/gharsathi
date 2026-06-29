@@ -3,13 +3,16 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const hpp = require('hpp');
 const path = require('path');
 const http = require('http');
 const bcrypt = require('bcryptjs');
+const passport = require('passport');
 const { v4: uuidv4 } = require('uuid');
 const { getDb, query, queryOne, execute, persistSync } = require('./database');
 
 const authRoutes = require('./routes/auth');
+const oauthRoutes = require('./routes/oauth');
 const serviceRoutes = require('./routes/services');
 const workerRoutes = require('./routes/workers');
 const bookingRoutes = require('./routes/bookings');
@@ -28,6 +31,14 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' },
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many auth requests, please try again later.' },
 });
 
 const corsOrigins = process.env.CORS_ORIGINS || '*';
@@ -50,19 +61,60 @@ async function start() {
 
   const io = setupSocket(server);
 
+  const CSP_DIRECTIVES = {
+    defaultSrc: ["'self'"],
+    scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'",
+      'https://cdn.tailwindcss.com', 'https://unpkg.com',
+      'https://cdn.jsdelivr.net', 'https://cdn.socket.io',
+      'https://cdnjs.cloudflare.com'],
+    styleSrc: ["'self'", "'unsafe-inline'",
+      'https://fonts.googleapis.com', 'https://unpkg.com',
+      'https://cdn.jsdelivr.net'],
+    fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+    imgSrc: ["'self'", 'data:', 'https://i.pravatar.cc',
+      'https://*.tile.openstreetmap.org', 'https://unpkg.com'],
+    connectSrc: ["'self'", 'https://nominatim.openstreetmap.org',
+      'wss://*.opencode.ai'],
+    frameAncestors: ["'none'"],
+    formAction: ["'self'"],
+    baseUri: ["'self'"],
+  };
+
   app.use(helmet({
-    contentSecurityPolicy: false,
+    contentSecurityPolicy: { directives: CSP_DIRECTIVES },
     crossOriginResourcePolicy: { policy: 'cross-origin' },
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+    noSniff: true,
+    frameguard: { action: 'deny' },
+    xssFilter: true,
+    hidePoweredBy: true,
+    ieNoOpen: true,
+    permittedCrossDomainPolicies: { permittedPolicies: 'none' },
   }));
+
   app.use(cors(corsOptions));
   app.use(express.json({ limit: '1mb' }));
+  app.use(express.urlencoded({ extended: false, limit: '1mb' }));
   app.use(limiter);
+  app.use(hpp());
+
+  app.use(passport.initialize());
 
   app.use((req, res, next) => {
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('X-XSS-Protection', '0');
-    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    res.setHeader('Permissions-Policy', 'geolocation=(self "https://*.tile.openstreetmap.org"), camera=(), microphone=(), payment=()');
+    res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+    if (req.path.startsWith('/api/')) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    }
+    next();
+  });
+
+  app.use((req, res, next) => {
+    res.setTimeout(30000, () => {
+      res.status(408).json({ error: 'Request timeout' });
+    });
     next();
   });
 
@@ -91,7 +143,8 @@ async function start() {
 
   app.get('/api/ping', (req, res) => res.json({ ok: true, time: Date.now() }));
 
-  app.use('/api/auth', authRoutes);
+  app.use('/api/auth', authLimiter, authRoutes);
+  app.use('/api/auth', authLimiter, oauthRoutes);
   app.use('/api/services', serviceRoutes);
   app.use('/api/workers', workerRoutes);
   app.use('/api/bookings', bookingRoutes);

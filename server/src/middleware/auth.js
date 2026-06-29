@@ -50,7 +50,7 @@ async function generateRefreshToken(user, req) {
   const expiresAt = new Date(Date.now() + REFRESH_EXPIRY_DAYS * 86400000).toISOString();
   execute(
     'INSERT INTO sessions (id, user_id, refresh_hash, user_agent, ip, expires_at) VALUES (?, ?, ?, ?, ?, ?)',
-    id, user.id, refreshHash, req?.headers?.['user-agent'] || '', req?.ip || ''
+    id, user.id, refreshHash, req?.headers?.['user-agent'] || '', req?.ip || '', expiresAt
   );
   return { id: raw, sessionId: id };
 }

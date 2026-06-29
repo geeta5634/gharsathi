@@ -1,6 +1,7 @@
 const express = require('express');
 const { query, queryOne, execute } = require('../database');
 const { authenticate } = require('../middleware/auth');
+const { sanitize, sanitizeHtml, validateId, validateDate, validateAddress, validateEnum, validateRating, VALID_STATUSES, VALID_PAYMENT_METHODS } = require('../middleware/validate');
 
 const router = express.Router();
 
@@ -62,36 +63,44 @@ router.get('/:id', authenticate, (req, res) => {
 
 router.post('/', authenticate, (req, res) => {
   try {
-    const { service_id, worker_id, booking_date, booking_time, address, visit_charge, service_charge, platform_fee, payment_method, notes } = req.body;
+    const { worker_id, visit_charge, service_charge, platform_fee, payment_method, notes } = req.body;
 
-    if (!service_id || typeof service_id !== 'string') return res.status(400).json({ error: 'Service is required' });
-    if (!booking_date || typeof booking_date !== 'string') return res.status(400).json({ error: 'Booking date is required' });
-    if (!booking_time || typeof booking_time !== 'string') return res.status(400).json({ error: 'Booking time is required' });
-    if (!address || typeof address !== 'string' || address.trim().length < 5) {
-      return res.status(400).json({ error: 'Valid address (min 5 characters) is required' });
+    const svcId = validateId(req.body.service_id, 'Service');
+    if (!svcId.valid) return res.status(400).json({ error: svcId.error });
+
+    const bDate = validateDate(req.body.booking_date);
+    if (!bDate.valid) return res.status(400).json({ error: bDate.error });
+
+    if (!req.body.booking_time || typeof req.body.booking_time !== 'string') {
+      return res.status(400).json({ error: 'Booking time is required' });
     }
+    const bTime = sanitize(req.body.booking_time);
 
-    const service = queryOne('SELECT id FROM services WHERE id = ?', service_id);
+    const addr = validateAddress(req.body.address);
+    if (!addr.valid) return res.status(400).json({ error: addr.error });
+
+    const service = queryOne('SELECT id FROM services WHERE id = ?', svcId.value);
     if (!service) return res.status(400).json({ error: 'Invalid service' });
 
     if (worker_id) {
-      const worker = queryOne('SELECT id FROM workers WHERE id = ?', worker_id);
+      const wId = validateId(worker_id, 'Worker');
+      if (!wId.valid) return res.status(400).json({ error: wId.error });
+      const worker = queryOne('SELECT id FROM workers WHERE id = ?', wId.value);
       if (!worker) return res.status(400).json({ error: 'Invalid worker' });
     }
 
-    if (payment_method && !['cash', 'online'].includes(payment_method)) {
-      return res.status(400).json({ error: 'Payment method must be cash or online' });
-    }
+    const pm = payment_method ? validateEnum(payment_method, VALID_PAYMENT_METHODS, 'Payment method') : { valid: true, value: 'cash' };
+    if (!pm.valid) return res.status(400).json({ error: pm.error });
 
-    const vc = visit_charge || 299;
-    const sc = service_charge || 500;
-    const pf = platform_fee || 49;
+    const vc = typeof visit_charge === 'number' && visit_charge > 0 ? visit_charge : 299;
+    const sc = typeof service_charge === 'number' && service_charge > 0 ? service_charge : 500;
+    const pf = typeof platform_fee === 'number' && platform_fee > 0 ? platform_fee : 49;
     const total = vc + sc + pf;
     const id = 'GS' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 5).toUpperCase();
 
     execute(
       'INSERT INTO bookings (id, customer_id, worker_id, service_id, status, booking_date, booking_time, address, visit_charge, service_charge, platform_fee, total_amount, payment_method, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      id, req.user.id, worker_id || null, service_id, 'pending', booking_date, booking_time, address.trim(), vc, sc, pf, total, payment_method || 'cash', notes || null
+      id, req.user.id, worker_id || null, svcId.value, 'pending', bDate.value, bTime, sanitizeHtml(addr.value), vc, sc, pf, total, pm.value, notes ? sanitize(notes) : null
     );
 
     res.status(201).json(queryOne('SELECT * FROM bookings WHERE id = ?', id));
@@ -102,11 +111,8 @@ router.post('/', authenticate, (req, res) => {
 
 router.put('/:id/status', authenticate, (req, res) => {
   try {
-    const { status } = req.body;
-    const validStatuses = ['pending', 'confirmed', 'in-progress', 'completed', 'cancelled'];
-    if (!status || !validStatuses.includes(status)) {
-      return res.status(400).json({ error: `Status must be one of: ${validStatuses.join(', ')}` });
-    }
+    const statusCheck = validateEnum(req.body.status, VALID_STATUSES, 'Status');
+    if (!statusCheck.valid) return res.status(400).json({ error: statusCheck.error });
 
     const booking = queryOne('SELECT * FROM bookings WHERE id = ?', req.params.id);
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
@@ -148,10 +154,10 @@ router.put('/:id/status', authenticate, (req, res) => {
 
 router.put('/:id/review', authenticate, (req, res) => {
   try {
-    const { rating, comment } = req.body;
-    if (!rating || typeof rating !== 'number' || rating < 1 || rating > 5) {
-      return res.status(400).json({ error: 'Rating must be a number between 1 and 5' });
-    }
+    const { comment } = req.body;
+    const ratingCheck = validateRating(req.body.rating);
+    if (!ratingCheck.valid) return res.status(400).json({ error: ratingCheck.error });
+
     if (comment && (typeof comment !== 'string' || comment.length > 1000)) {
       return res.status(400).json({ error: 'Comment too long (max 1000 characters)' });
     }
@@ -162,7 +168,7 @@ router.put('/:id/review', authenticate, (req, res) => {
     }
 
     execute('INSERT INTO reviews (booking_id, customer_id, worker_id, rating, comment) VALUES (?, ?, ?, ?, ?)',
-      req.params.id, req.user.id, booking.worker_id, rating, comment || null);
+      req.params.id, req.user.id, booking.worker_id, ratingCheck.value, comment ? sanitize(comment) : null);
 
     if (booking.worker_id) {
       const stats = queryOne('SELECT AVG(rating) as avg, COUNT(*) as cnt FROM reviews WHERE worker_id = ?', booking.worker_id);

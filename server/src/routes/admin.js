@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const { query, queryOne, execute } = require('../database');
 const { authenticate, requireRole } = require('../middleware/auth');
+const { sanitize, sanitizeHtml, validatePhone, validateName, validateNumber } = require('../middleware/validate');
 
 const router = express.Router();
 
@@ -36,16 +37,25 @@ router.get('/users/customers', authenticate, requireRole('admin'), (req, res) =>
 
 router.post('/workers', authenticate, requireRole('admin'), async (req, res) => {
   try {
-    const { name, phone, service_id, experience, visit_charge, about, skills } = req.body;
-    if (!name || !phone || !service_id) return res.status(400).json({ error: 'Name, phone, and service are required' });
+    const { service_id, experience, visit_charge, about, skills } = req.body;
 
-    let user = queryOne('SELECT * FROM users WHERE phone = ?', phone.trim());
+    const nameCheck = validateName(req.body.name);
+    if (!nameCheck.valid) return res.status(400).json({ error: nameCheck.error });
+
+    const phoneCheck = validatePhone(req.body.phone);
+    if (!phoneCheck.valid) return res.status(400).json({ error: phoneCheck.error });
+
+    if (!service_id || typeof service_id !== 'string') {
+      return res.status(400).json({ error: 'Service is required' });
+    }
+
+    let user = queryOne('SELECT * FROM users WHERE phone = ?', phoneCheck.value);
     if (!user) {
       const id = uuidv4();
-      const hashed = await bcrypt.hash(phone + Date.now(), 10);
+      const hashed = await bcrypt.hash(phoneCheck.value + Date.now(), 10);
       const avatar = `https://i.pravatar.cc/200?u=${id}`;
       execute('INSERT INTO users (id, name, phone, password, role, avatar) VALUES (?, ?, ?, ?, ?, ?)',
-        id, name.trim(), phone.trim(), hashed, 'worker', avatar);
+        id, sanitizeHtml(nameCheck.value), phoneCheck.value, hashed, 'worker', avatar);
       user = queryOne('SELECT * FROM users WHERE id = ?', id);
     }
 
@@ -54,7 +64,7 @@ router.post('/workers', authenticate, requireRole('admin'), async (req, res) => 
 
     const wid = 'w' + uuidv4().substring(0, 8);
     execute('INSERT INTO workers (id, user_id, service_id, experience, visit_charge, about) VALUES (?, ?, ?, ?, ?, ?)',
-      wid, user.id, service_id, experience || '5 Years', visit_charge || 299, about || null);
+      wid, user.id, service_id, experience || '5 Years', visit_charge || 299, about ? sanitize(about) : null);
 
     if (skills && Array.isArray(skills)) {
       for (const skill of skills) {

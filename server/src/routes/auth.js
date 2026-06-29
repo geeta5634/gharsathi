@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const { query, queryOne, execute } = require('../database');
 const { sendOTP } = require('../services/sms');
+const { sanitize, sanitizeHtml, validatePhone, validateEmail, validatePassword, validateName } = require('../middleware/validate');
 const {
   generateAccessToken,
   generateRefreshToken,
@@ -34,18 +35,17 @@ async function createSession(user, req) {
 // ─── Send OTP (Phone) ───────────────────────────────
 router.post('/send-otp', async (req, res) => {
   try {
-    const { phone } = req.body;
-    if (!phone || typeof phone !== 'string' || !/^[0-9]{10,15}$/.test(phone.trim())) {
-      return res.status(400).json({ error: 'Valid phone number is required' });
+    const phoneCheck = validatePhone(req.body.phone);
+    if (!phoneCheck.valid) {
+      return res.status(400).json({ error: phoneCheck.error });
     }
-    const phoneClean = phone.trim();
-    const lockout = checkLoginLockout(phoneClean);
+    const lockout = checkLoginLockout(phoneCheck.value);
     if (lockout) {
       return res.status(429).json({ error: `Too many attempts. Try again in ${lockout} minute(s).` });
     }
     const otp = generateOtp();
-    storeOtp('otp:' + phoneClean, otp);
-    const result = await sendOTP(phoneClean, otp);
+    storeOtp('otp:' + phoneCheck.value, otp);
+    const result = await sendOTP(phoneCheck.value, otp);
     const smsFailed = !result.success;
     if (smsFailed) {
       console.warn(`[SMS] Failed: ${result.error}. Showing OTP on screen.`);
@@ -62,28 +62,33 @@ router.post('/send-otp', async (req, res) => {
 // ─── Verify OTP (Phone) ─────────────────────────────
 router.post('/verify-otp', async (req, res) => {
   try {
-    const { phone, otp, name } = req.body;
-    if (!phone || !otp) return res.status(400).json({ error: 'Phone and OTP are required' });
-    const phoneClean = phone.trim();
-    const result = verifyOtp('otp:' + phoneClean, otp.trim());
+    const { otp, name } = req.body;
+    const phoneCheck = validatePhone(req.body.phone);
+    if (!phoneCheck.valid) {
+      return res.status(400).json({ error: phoneCheck.error });
+    }
+    if (!otp || typeof otp !== 'string') return res.status(400).json({ error: 'OTP is required' });
+    const result = verifyOtp('otp:' + phoneCheck.value, otp.trim());
     if (!result.valid) {
       return res.status(401).json({ error: result.error });
     }
-    let user = queryOne('SELECT * FROM users WHERE phone = ?', phoneClean);
+    let user = queryOne('SELECT * FROM users WHERE phone = ?', phoneCheck.value);
     let isNewUser = false;
     if (!user) {
       if (!name) return res.status(400).json({ error: 'Name is required for registration' });
+      const nameCheck = validateName(name);
+      if (!nameCheck.valid) return res.status(400).json({ error: nameCheck.error });
       isNewUser = true;
       const id = uuidv4();
-      const hashed = await bcrypt.hash(phoneClean + Date.now(), 10);
+      const hashed = await bcrypt.hash(phoneCheck.value + Date.now(), 10);
       const avatar = `https://i.pravatar.cc/200?u=${id}`;
       execute(
         'INSERT INTO users (id, name, phone, password, role, avatar) VALUES (?, ?, ?, ?, ?, ?)',
-        id, name.trim(), phoneClean, hashed, 'customer', avatar
+        id, sanitizeHtml(nameCheck.value), phoneCheck.value, hashed, 'customer', avatar
       );
       user = queryOne('SELECT * FROM users WHERE id = ?', id);
     }
-    clearLoginAttempts(phoneClean);
+    clearLoginAttempts(phoneCheck.value);
     const session = await createSession(user, req);
     res.json({ user: sanitizeUser(user), ...session, isNew: isNewUser });
   } catch (err) {
@@ -94,34 +99,33 @@ router.post('/verify-otp', async (req, res) => {
 // ─── Register (Email/Password) ──────────────────────
 router.post('/register', async (req, res) => {
   try {
-    const { name, phone, password, role, email } = req.body;
-    if (!name || typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 100) {
-      return res.status(400).json({ error: 'Name must be between 2 and 100 characters' });
-    }
-    if (!phone || typeof phone !== 'string' || !/^[0-9]{10,15}$/.test(phone.trim())) {
-      return res.status(400).json({ error: 'Valid phone number (10-15 digits) is required' });
-    }
-    if (!password || typeof password !== 'string' || password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
-    }
-    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
-      return res.status(400).json({ error: 'Password must contain uppercase, lowercase, and a number' });
-    }
+    const { password, role, email } = req.body;
+
+    const nameCheck = validateName(req.body.name);
+    if (!nameCheck.valid) return res.status(400).json({ error: nameCheck.error });
+
+    const phoneCheck = validatePhone(req.body.phone);
+    if (!phoneCheck.valid) return res.status(400).json({ error: phoneCheck.error });
+
+    const passwordCheck = validatePassword(password);
+    if (!passwordCheck.valid) return res.status(400).json({ error: passwordCheck.error });
+
     if (role && !['customer', 'worker', 'admin'].includes(role)) {
       return res.status(400).json({ error: 'Invalid role' });
     }
-    if (email && (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
-      return res.status(400).json({ error: 'Invalid email format' });
-    }
-    const phoneClean = phone.trim();
-    const existing = queryOne('SELECT id FROM users WHERE phone = ?', phoneClean);
+
+    const emailCheck = validateEmail(email);
+    if (!emailCheck.valid) return res.status(400).json({ error: emailCheck.error });
+
+    const existing = queryOne('SELECT id FROM users WHERE phone = ?', phoneCheck.value);
     if (existing) return res.status(409).json({ error: 'Phone number already registered' });
+
     const id = uuidv4();
-    const hashed = await bcrypt.hash(password, 10);
+    const hashed = await bcrypt.hash(passwordCheck.value, 10);
     const avatar = `https://i.pravatar.cc/200?u=${id}`;
     execute(
       'INSERT INTO users (id, name, phone, email, password, role, avatar) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      id, name.trim(), phoneClean, email ? email.trim().toLowerCase() : null, hashed, role || 'customer', avatar
+      id, sanitizeHtml(nameCheck.value), phoneCheck.value, emailCheck.value, hashed, role || 'customer', avatar
     );
     const user = queryOne('SELECT id, name, phone, email, role, location, avatar FROM users WHERE id = ?', id);
     const session = await createSession(user, req);
@@ -134,24 +138,26 @@ router.post('/register', async (req, res) => {
 // ─── Login (Phone/Password) ─────────────────────────
 router.post('/login', async (req, res) => {
   try {
-    const { phone, password } = req.body;
-    if (!phone || !password) return res.status(400).json({ error: 'Phone and password are required' });
-    const phoneClean = phone.trim();
-    const lockout = checkLoginLockout(phoneClean);
+    const { password } = req.body;
+    const phoneCheck = validatePhone(req.body.phone);
+    if (!phoneCheck.valid) return res.status(400).json({ error: phoneCheck.error });
+    if (!password) return res.status(400).json({ error: 'Password is required' });
+
+    const lockout = checkLoginLockout(phoneCheck.value);
     if (lockout) {
       return res.status(429).json({ error: `Too many failed attempts. Try again in ${lockout} minute(s).` });
     }
-    const user = queryOne('SELECT * FROM users WHERE phone = ?', phoneClean);
+    const user = queryOne('SELECT * FROM users WHERE phone = ?', phoneCheck.value);
     if (!user) {
-      recordFailedAttempt(phoneClean);
+      recordFailedAttempt(phoneCheck.value);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) {
-      recordFailedAttempt(phoneClean);
+      recordFailedAttempt(phoneCheck.value);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
-    clearLoginAttempts(phoneClean);
+    clearLoginAttempts(phoneCheck.value);
     const session = await createSession(user, req);
     res.json({ user: sanitizeUser(user), ...session });
   } catch (err) {
@@ -204,20 +210,17 @@ router.post('/logout-all', authenticate, async (req, res) => {
 // ─── Change Password ────────────────────────────────
 router.post('/change-password', authenticate, async (req, res) => {
   try {
-    const { currentPassword, newPassword } = req.body;
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ error: 'Current and new password are required' });
-    }
-    if (newPassword.length < 6) {
-      return res.status(400).json({ error: 'New password must be at least 6 characters' });
-    }
-    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(newPassword)) {
-      return res.status(400).json({ error: 'Password must contain uppercase, lowercase, and a number' });
-    }
+    const { currentPassword } = req.body;
+    if (!currentPassword) return res.status(400).json({ error: 'Current password is required' });
+
+    const passwordCheck = validatePassword(req.body.newPassword);
+    if (!passwordCheck.valid) return res.status(400).json({ error: passwordCheck.error });
+
     const user = queryOne('SELECT * FROM users WHERE id = ?', req.user.id);
     const valid = await bcrypt.compare(currentPassword, user.password);
     if (!valid) return res.status(401).json({ error: 'Current password is incorrect' });
-    const hashed = await bcrypt.hash(newPassword, 10);
+
+    const hashed = await bcrypt.hash(passwordCheck.value, 10);
     execute("UPDATE users SET password = ?, updated_at = datetime('now') WHERE id = ?", hashed, req.user.id);
     revokeAllUserTokens(req.user.id, null);
     const session = await createSession(req.user, req);
@@ -230,20 +233,19 @@ router.post('/change-password', authenticate, async (req, res) => {
 // ─── Forgot Password (Send OTP) ─────────────────────
 router.post('/forgot-password', async (req, res) => {
   try {
-    const { phone } = req.body;
-    if (!phone || typeof phone !== 'string' || !/^[0-9]{10,15}$/.test(phone.trim())) {
-      return res.status(400).json({ error: 'Valid phone number is required' });
-    }
-    const phoneClean = phone.trim();
-    const user = queryOne('SELECT id FROM users WHERE phone = ?', phoneClean);
+    const phoneCheck = validatePhone(req.body.phone);
+    if (!phoneCheck.valid) return res.status(400).json({ error: phoneCheck.error });
+
+    const user = queryOne('SELECT id FROM users WHERE phone = ?', phoneCheck.value);
     if (!user) return res.status(404).json({ error: 'No account found with this phone number' });
-    const lockout = checkLoginLockout(phoneClean);
+
+    const lockout = checkLoginLockout(phoneCheck.value);
     if (lockout) {
       return res.status(429).json({ error: `Too many attempts. Try again in ${lockout} minute(s).` });
     }
     const otp = generateOtp();
-    storeOtp('reset:' + phoneClean, otp);
-    const result = await sendOTP(phoneClean, otp);
+    storeOtp('reset:' + phoneCheck.value, otp);
+    const result = await sendOTP(phoneCheck.value, otp);
     const smsFailed = !result.success;
     if (smsFailed) {
       console.warn(`[SMS] Failed: ${result.error}. Showing OTP on screen.`);
@@ -260,24 +262,21 @@ router.post('/forgot-password', async (req, res) => {
 // ─── Reset Password (Verify OTP + New Password) ─────
 router.post('/reset-password', async (req, res) => {
   try {
-    const { phone, otp, newPassword } = req.body;
-    if (!phone || !otp || !newPassword) {
-      return res.status(400).json({ error: 'Phone, OTP, and new password are required' });
-    }
-    if (newPassword.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
-    }
-    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(newPassword)) {
-      return res.status(400).json({ error: 'Password must contain uppercase, lowercase, and a number' });
-    }
-    const phoneClean = phone.trim();
-    const result = verifyOtp('reset:' + phoneClean, otp.trim());
-    if (!result.valid) {
-      return res.status(401).json({ error: result.error });
-    }
-    const user = queryOne('SELECT * FROM users WHERE phone = ?', phoneClean);
+    const { otp } = req.body;
+    const phoneCheck = validatePhone(req.body.phone);
+    if (!phoneCheck.valid) return res.status(400).json({ error: phoneCheck.error });
+    if (!otp) return res.status(400).json({ error: 'OTP is required' });
+
+    const passwordCheck = validatePassword(req.body.newPassword);
+    if (!passwordCheck.valid) return res.status(400).json({ error: passwordCheck.error });
+
+    const result = verifyOtp('reset:' + phoneCheck.value, otp.trim());
+    if (!result.valid) return res.status(401).json({ error: result.error });
+
+    const user = queryOne('SELECT * FROM users WHERE phone = ?', phoneCheck.value);
     if (!user) return res.status(404).json({ error: 'User not found' });
-    const hashed = await bcrypt.hash(newPassword, 10);
+
+    const hashed = await bcrypt.hash(passwordCheck.value, 10);
     execute("UPDATE users SET password = ?, updated_at = datetime('now') WHERE id = ?", hashed, user.id);
     revokeAllUserTokens(user.id, null);
     const session = await createSession(user, req);
@@ -336,15 +335,19 @@ router.put('/me', authenticate, (req, res) => {
     const updates = [];
     const values = [];
     if (name !== undefined) {
-      if (typeof name !== 'string' || name.trim().length < 2) return res.status(400).json({ error: 'Name must be at least 2 characters' });
-      updates.push('name = ?'); values.push(name.trim());
+      const nameCheck = validateName(name);
+      if (!nameCheck.valid) return res.status(400).json({ error: nameCheck.error });
+      updates.push('name = ?'); values.push(sanitizeHtml(nameCheck.value));
     }
     if (email !== undefined) {
-      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Invalid email format' });
-      updates.push('email = ?'); values.push(email ? email.trim().toLowerCase() : null);
+      const emailCheck = validateEmail(email);
+      if (!emailCheck.valid) return res.status(400).json({ error: emailCheck.error });
+      updates.push('email = ?'); values.push(emailCheck.value);
     }
     if (location !== undefined) {
-      updates.push('location = ?'); values.push(location.trim());
+      const loc = sanitize(String(location));
+      if (loc.length < 2) return res.status(400).json({ error: 'Location must be at least 2 characters' });
+      updates.push('location = ?'); values.push(loc);
     }
     if (updates.length === 0) return res.status(400).json({ error: 'Nothing to update' });
     updates.push("updated_at = datetime('now')");

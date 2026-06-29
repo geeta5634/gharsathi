@@ -2,6 +2,7 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { query, queryOne, execute } = require('../database');
 const { authenticate, requireRole } = require('../middleware/auth');
+const { sanitize } = require('../middleware/validate');
 
 const router = express.Router();
 

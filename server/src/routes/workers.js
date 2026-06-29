@@ -2,6 +2,7 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { query, queryOne, execute } = require('../database');
 const { authenticate } = require('../middleware/auth');
+const { sanitize, sanitizeHtml, validateId, validateNumber, validateBoolean } = require('../middleware/validate');
 
 const router = express.Router();
 
@@ -44,19 +45,21 @@ router.post('/', authenticate, (req, res) => {
     const existing = queryOne('SELECT id FROM workers WHERE user_id = ?', userId);
     if (existing) return res.status(409).json({ error: 'Worker profile already exists' });
 
-    const { service_id, experience, visit_charge, about, skills } = req.body;
-    if (!service_id || typeof service_id !== 'string') return res.status(400).json({ error: 'Service ID is required' });
+    const { experience, visit_charge, about, skills } = req.body;
+    const svcId = validateId(req.body.service_id, 'Service ID');
+    if (!svcId.valid) return res.status(400).json({ error: svcId.error });
 
-    const service = queryOne('SELECT id FROM services WHERE id = ?', service_id);
+    const service = queryOne('SELECT id FROM services WHERE id = ?', svcId.value);
     if (!service) return res.status(400).json({ error: 'Invalid service ID' });
 
-    if (visit_charge && (typeof visit_charge !== 'number' || visit_charge < 0 || visit_charge > 99999)) {
-      return res.status(400).json({ error: 'Invalid visit charge' });
+    if (visit_charge !== undefined) {
+      const vc = validateNumber(visit_charge, 0, 99999, 'Visit charge');
+      if (!vc.valid) return res.status(400).json({ error: vc.error });
     }
 
     const id = uuidv4();
     execute('INSERT INTO workers (id, user_id, service_id, experience, visit_charge, about) VALUES (?, ?, ?, ?, ?, ?)',
-      id, userId, service_id, experience || '5 Years', visit_charge || 299, about || null);
+      id, userId, svcId.value, experience || '5 Years', visit_charge || 299, about ? sanitize(about) : null);
 
     if (skills && Array.isArray(skills)) {
       for (const skill of skills) {
@@ -99,15 +102,21 @@ router.put('/:id', authenticate, (req, res) => {
 
     const { experience, visit_charge, available, about, skills } = req.body;
 
-    if (visit_charge !== undefined && (typeof visit_charge !== 'number' || visit_charge < 0 || visit_charge > 99999)) {
-      return res.status(400).json({ error: 'Invalid visit charge' });
+    if (visit_charge !== undefined) {
+      const vc = validateNumber(visit_charge, 0, 99999, 'Visit charge');
+      if (!vc.valid) return res.status(400).json({ error: vc.error });
+    }
+
+    if (available !== undefined) {
+      const av = validateBoolean(available);
+      if (!av.valid) return res.status(400).json({ error: av.error });
     }
 
     execute('UPDATE workers SET experience = ?, visit_charge = ?, available = ?, about = ? WHERE id = ?',
       experience || worker.experience,
       visit_charge !== undefined ? visit_charge : worker.visit_charge,
       available !== undefined ? (available ? 1 : 0) : worker.available,
-      about !== undefined ? about : worker.about, req.params.id);
+      about !== undefined ? sanitize(about) : worker.about, req.params.id);
 
     if (skills && Array.isArray(skills)) {
       execute('DELETE FROM worker_skills WHERE worker_id = ?', req.params.id);
