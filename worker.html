@@ -6,6 +6,7 @@
     <title>GharSathi Worker App</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; background: #f3f4f6; }
@@ -515,13 +516,32 @@
 
         let locationWatchId = null;
         let sharingBookingId = null;
+        let workerSocket = null;
+
+        function connectWorkerSocket() {
+            if (!token || workerSocket) return;
+            workerSocket = io(window.location.origin, {
+                auth: { token },
+                transports: ['websocket', 'polling'],
+            });
+            workerSocket.on('connect', () => console.log('[Worker Socket] Connected'));
+            workerSocket.on('disconnect', () => console.log('[Worker Socket] Disconnected'));
+        }
 
         function startSharingLocation(bookingId) {
             if (!navigator.geolocation) { showToast('error', 'Geolocation not supported'); return; }
             sharingBookingId = bookingId;
             document.getElementById('live-badge').classList.remove('hidden');
-            locationWatchId = navigator.geolocation.watchPosition(async (pos) => {
-                await apiFetch('/location/worker', {
+            connectWorkerSocket();
+            locationWatchId = navigator.geolocation.watchPosition((pos) => {
+                if (workerSocket && workerSocket.connected && sharingBookingId) {
+                    workerSocket.emit('location-update', {
+                        bookingId: sharingBookingId,
+                        lat: pos.coords.latitude,
+                        lng: pos.coords.longitude,
+                    });
+                }
+                apiFetch('/location/worker', {
                     method: 'PUT', body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude })
                 });
             }, (err) => {
@@ -534,8 +554,11 @@
             if (locationWatchId !== null) {
                 navigator.geolocation.clearWatch(locationWatchId);
                 locationWatchId = null;
-                sharingBookingId = null;
             }
+            if (workerSocket && workerSocket.connected && sharingBookingId) {
+                workerSocket.emit('stop-tracking', sharingBookingId);
+            }
+            sharingBookingId = null;
             document.getElementById('live-badge').classList.add('hidden');
         }
 

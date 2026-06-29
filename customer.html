@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <style>
         body { font-family: 'Inter', sans-serif; background: #f3f4f6; }
         .mobile-container { max-width: 480px; margin: 0 auto; background: white; min-height: 100vh; position: relative; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
@@ -94,7 +95,7 @@
                 <div class="text-right">
                     <p class="text-xs text-gray-500">Location</p>
                     <div class="flex items-center text-sm font-semibold text-gray-800 cursor-pointer" onclick="toggleLocation()">
-                        <span id="current-location">Jodhpur, Rajasthan</span>
+                        <span id="current-location">Jhalamand, Jodhpur</span>
                         <i data-lucide="chevron-down" class="w-4 h-4 ml-1"></i>
                     </div>
                 </div>
@@ -249,7 +250,7 @@
                     <div class="flex items-center justify-between mb-3"><p class="font-semibold text-gray-800">Address</p><button onclick="getCurrentLocation()" class="text-blue-600 text-xs font-medium flex items-center"><i data-lucide="navigation" class="w-3 h-3 mr-1"></i> Use My Location</button></div>
                     <div class="flex items-start space-x-2 text-gray-600">
                         <i data-lucide="map-pin" class="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0"></i>
-                        <textarea id="booking-address" rows="2" class="text-sm w-full border-none focus:outline-none bg-transparent resize-none">Shastri Nagar, Jodhpur, Rajasthan 342003</textarea>
+                        <textarea id="booking-address" rows="2" class="text-sm w-full border-none focus:outline-none bg-transparent resize-none">106, Ganesh Nagar Old Sardarsamand School, Jhalamand, Jodhpur</textarea>
                     </div>
                 </div>
                 <div class="bg-white rounded-xl border border-gray-200 p-4">
@@ -322,9 +323,57 @@
                 </div>
                 <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 mb-6">
                     <button class="w-full flex items-center justify-between p-4 hover:bg-gray-50" onclick="showScreen('home')"><span class="font-medium text-gray-800">My Bookings</span><i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i></button>
-                    <button class="w-full flex items-center justify-between p-4 hover:bg-gray-50" onclick="showToast('info', 'Support: 1800-123-4567')"><span class="font-medium text-gray-800">Help & Support</span><i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i></button>
+                    <button class="w-full flex items-center justify-between p-4 hover:bg-gray-50" onclick="showScreen('health-record')"><span class="font-medium text-gray-800">Ghar Ka Health Record</span><i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i></button>
+                    <button class="w-full flex items-center justify-between p-4 hover:bg-gray-50" onclick="showScreen('detect')"><span class="font-medium text-gray-800">AI Problem Detection</span><i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i></button>
+                    <button class="w-full flex items-center justify-between p-4 hover:bg-gray-50" onclick="showToast('info', 'Support: 8690094699')"><span class="font-medium text-gray-800">Help & Support</span><i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i></button>
                     <button class="w-full flex items-center justify-between p-4 hover:bg-gray-50" onclick="logout()"><span class="font-medium text-red-600">Logout</span><i data-lucide="log-out" class="w-5 h-5 text-red-600"></i></button>
                 </div>
+            </div>
+        </div>
+
+        <div id="health-record" class="screen">
+            <div class="sticky top-16 bg-white z-30 px-4 py-3 border-b flex items-center">
+                <button onclick="showScreen('profile')" class="p-2 -ml-2 hover:bg-gray-100 rounded-full mr-2"><i data-lucide="arrow-left" class="w-5 h-5 text-gray-600"></i></button>
+                <h2 class="font-bold text-gray-800">Ghar Ka Health Record</h2>
+            </div>
+            <div class="p-4">
+                <div class="bg-blue-50 rounded-xl p-4 mb-4 text-sm text-blue-800">
+                    Track your home assets and get reminders when service is due.
+                </div>
+                <button onclick="showAddAssetForm()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold mb-4 flex items-center justify-center"><i data-lucide="plus" class="w-5 h-5 mr-2"></i> Add Asset</button>
+                <div id="add-asset-form" class="hidden bg-white rounded-xl border border-gray-200 p-4 mb-4 space-y-3">
+                    <input type="text" id="asset-name" placeholder="Asset name (e.g. AC, Water Heater)" class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="text" id="asset-category" placeholder="Category (e.g. AC, Plumbing, Electrical)" class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <div><label class="text-xs text-gray-500">Last Service Date</label><input type="date" id="asset-last-service" class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                    <div><label class="text-xs text-gray-500">Next Service Due</label><input type="date" id="asset-next-service" class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                    <textarea id="asset-notes" placeholder="Notes..." class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows="2"></textarea>
+                    <button onclick="saveAsset()" class="w-full bg-green-600 text-white py-3 rounded-xl font-bold">Save Asset</button>
+                </div>
+                <div id="assets-list" class="space-y-3"><p class="text-center text-gray-500 py-4 text-sm">Loading...</p></div>
+            </div>
+        </div>
+
+        <div id="detect" class="screen">
+            <div class="sticky top-16 bg-white z-30 px-4 py-3 border-b flex items-center">
+                <button onclick="showScreen('profile')" class="p-2 -ml-2 hover:bg-gray-100 rounded-full mr-2"><i data-lucide="arrow-left" class="w-5 h-5 text-gray-600"></i></button>
+                <h2 class="font-bold text-gray-800">AI Problem Detection</h2>
+            </div>
+            <div class="p-4">
+                <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 mb-4 border border-purple-200">
+                    <div class="flex items-center space-x-3 mb-3">
+                        <div class="bg-purple-500 w-12 h-12 rounded-full flex items-center justify-center text-white"><i data-lucide="brain" class="w-6 h-6"></i></div>
+                        <div><h3 class="font-bold text-gray-800">AI Issue Detector</h3><p class="text-xs text-gray-600">Describe your problem and we'll identify the right service</p></div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+                    <textarea id="detect-description" rows="4" placeholder="Describe your problem in detail... e.g. Water is leaking from the kitchen pipe and the tap is not working." class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
+                    <div class="flex items-center space-x-2 text-sm text-gray-500">
+                        <i data-lucide="camera" class="w-4 h-4"></i>
+                        <span>Photo upload coming soon</span>
+                    </div>
+                    <button onclick="detectIssue()" id="detect-btn" class="w-full bg-purple-600 text-white py-3 rounded-xl font-bold flex items-center justify-center"><i data-lucide="search" class="w-5 h-5 mr-2"></i> Detect Issue</button>
+                </div>
+                <div id="detect-result" class="hidden mt-4"></div>
             </div>
         </div>
 
@@ -350,6 +399,25 @@
         let servicesCache = [];
         let otpTimer = null;
         let otpCooldown = false;
+        let socket = null;
+
+        function connectSocket() {
+            if (!token || socket) return;
+            socket = io(window.location.origin, {
+                auth: { token },
+                transports: ['websocket', 'polling'],
+            });
+            socket.on('connect', () => console.log('[Socket] Connected'));
+            socket.on('worker-location', (data) => {
+                if (trackingMap && trackingMarker) {
+                    const latlng = [data.lat, data.lng];
+                    trackingMarker.setLatLng(latlng);
+                    trackingMap.setView(latlng, trackingMap.getZoom());
+                    trackingMarker.setPopupContent('Worker Location<br><small>Updated: ' + new Date(data.updatedAt).toLocaleTimeString() + '</small>');
+                }
+            });
+            socket.on('disconnect', () => console.log('[Socket] Disconnected'));
+        }
 
         async function apiFetch(path, opts = {}) {
             const headers = { 'Content-Type': 'application/json' };
@@ -405,11 +473,15 @@
                     item.classList.add('text-gray-400'); item.classList.remove('text-blue-600');
                 }
             });
+            if (screenId === 'health-record' && currentUser) loadAssets();
+            if (screenId === 'tracking' && currentTrackingBookingId && socket && socket.connected) {
+                socket.emit('request-tracking', currentTrackingBookingId);
+            }
             try { lucide.createIcons(); } catch(e) {}
         }
 
         function toggleLocation() {
-            const locs = ['Jodhpur, Rajasthan', 'Jaipur, Rajasthan', 'Udaipur, Rajasthan', 'Ajmer, Rajasthan'];
+            const locs = ['Jhalamand, Jodhpur', 'Jaipur, Rajasthan', 'Udaipur, Rajasthan', 'Ajmer, Rajasthan'];
             const cur = document.getElementById('current-location').textContent;
             document.getElementById('current-location').textContent = locs[(locs.indexOf(cur) + 1) % locs.length];
         }
@@ -537,12 +609,19 @@
             document.getElementById('worker-detail-service').textContent = `${w.service_name} • ${w.experience} Experience`;
             document.getElementById('worker-detail-rating').textContent = w.rating;
             document.getElementById('worker-detail-reviews').textContent = w.reviews_count || 0;
-            document.getElementById('worker-detail-trust').textContent = (w.trust_score || 95) + '%';
             document.getElementById('worker-detail-price').textContent = '₹' + w.visit_charge;
             document.getElementById('worker-detail-image').src = w.avatar || 'https://i.pravatar.cc/200?u=' + w.id;
             document.getElementById('worker-detail-about').textContent = w.about || 'Professional and experienced worker.';
             document.getElementById('worker-detail-skills').innerHTML = (w.skills || []).map(s => `<span class="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-medium">${s}</span>`).join('');
             loadReviews(w.id);
+            fetch(API + '/trust-score/' + w.id).then(r => r.json()).then(data => {
+                const score = data ? data.trustScore : (w.trust_score || 95);
+                document.getElementById('worker-detail-trust').textContent = score + '%';
+                const color = score >= 80 ? 'text-green-600' : score >= 60 ? 'text-yellow-600' : 'text-red-600';
+                document.getElementById('worker-detail-trust').className = 'ml-1 text-sm font-bold ' + color;
+            }).catch(() => {
+                document.getElementById('worker-detail-trust').textContent = (w.trust_score || 95) + '%';
+            });
             showScreen('worker-details');
             try { lucide.createIcons(); } catch(e) {}
         }
@@ -602,7 +681,7 @@
 
         let trackingMap = null;
         let trackingMarker = null;
-        let trackingInterval = null;
+        let currentTrackingBookingId = null;
 
         function showTracking(booking) {
             document.getElementById('tracking-id').textContent = 'Booking ID: #' + booking.id;
@@ -623,11 +702,11 @@
                 </div>
             `).join('');
             showScreen('tracking');
-            if (selectedWorker) startLiveTracking(selectedWorker.user_id || selectedWorker.id);
+            if (selectedWorker) startLiveTracking(booking.id);
         }
 
-        function startLiveTracking(workerUserId) {
-            if (trackingInterval) clearInterval(trackingInterval);
+        function startLiveTracking(bookingId) {
+            currentTrackingBookingId = bookingId;
             const mapContainer = document.getElementById('map-container');
             mapContainer.style.display = 'block';
             if (!trackingMap) {
@@ -639,32 +718,12 @@
                     .bindPopup('Worker Location');
             }
             trackingMap.invalidateSize();
-            trackingInterval = setInterval(async () => {
-                const data = await apiFetch('/location/worker/' + workerUserId);
-                if (data && data.available) {
-                    const latlng = [data.lat, data.lng];
-                    trackingMarker.setLatLng(latlng);
-                    trackingMap.setView(latlng, trackingMap.getZoom());
-                    trackingMarker.setPopupContent('Worker Location<br><small>Updated: ' + new Date(data.updatedAt).toLocaleTimeString() + '</small>');
-                }
-            }, 5000);
-            pollWorkerLocation(workerUserId);
-        }
-
-        async function pollWorkerLocation(workerUserId) {
-            const data = await apiFetch('/location/worker/' + workerUserId);
-            if (data && data.available) {
-                const latlng = [data.lat, data.lng];
-                trackingMap.setView(latlng, 15);
-                trackingMarker.setLatLng(latlng);
-                trackingMarker.setPopupContent('Worker Location<br><small>Updated: ' + new Date(data.updatedAt).toLocaleTimeString() + '</small>');
-                trackingMarker.openPopup();
+            if (socket && socket.connected) {
+                socket.emit('request-tracking', bookingId);
             }
         }
 
         async function showTrackingDetail(bookingId) {
-            if (trackingInterval) clearInterval(trackingInterval);
-            trackingInterval = null;
             const data = await apiFetch('/bookings/' + bookingId);
             if (data) {
                 currentBooking = data;
@@ -726,7 +785,7 @@
 
         function callWorker() {
             if (selectedWorker) showToast('info', 'Calling ' + selectedWorker.name + '...');
-            else showToast('info', 'Customer support: 1800-123-4567');
+            else showToast('info', 'Customer support: 8690094699');
         }
 
         function chatWithWorker() {
@@ -836,6 +895,7 @@
             const initial = (currentUser.name || 'U')[0].toUpperCase();
             document.getElementById('profile-avatar-letter').textContent = initial;
             document.getElementById('header-avatar').textContent = initial;
+            connectSocket();
             showScreen('home');
             loadServices();
             loadMyBookings();
@@ -864,6 +924,118 @@
             showToast('info', 'Logged out successfully');
         }
 
+        function showAddAssetForm() {
+            const form = document.getElementById('add-asset-form');
+            form.classList.toggle('hidden');
+            if (!form.classList.contains('hidden')) {
+                document.getElementById('asset-name').focus();
+            }
+        }
+
+        async function loadAssets() {
+            const data = await apiFetch('/health-record');
+            const container = document.getElementById('assets-list');
+            if (!data || !data.length) {
+                container.innerHTML = '<p class="text-center text-gray-500 py-4 text-sm">No assets added yet. Add your first home asset!</p>';
+                return;
+            }
+            container.innerHTML = data.map(a => {
+                const overdue = a.next_service_date && new Date(a.next_service_date) < new Date();
+                return `<div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                    <div class="flex justify-between items-start">
+                        <div><h4 class="font-bold text-gray-800">${a.name}</h4><p class="text-xs text-gray-500">${a.category}</p></div>
+                        <button onclick="deleteAsset('${a.id}')" class="text-red-400 hover:text-red-600"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </div>
+                    <div class="mt-2 space-y-1 text-xs text-gray-600">
+                        ${a.last_service_date ? `<p>Last Service: ${a.last_service_date}</p>` : ''}
+                        ${a.next_service_date ? `<p class="${overdue ? 'text-red-600 font-bold' : ''}">Next Due: ${a.next_service_date} ${overdue ? '⚠️ OVERDUE' : ''}</p>` : ''}
+                        ${a.notes ? `<p>Notes: ${a.notes}</p>` : ''}
+                    </div>
+                </div>`;
+            }).join('');
+            try { lucide.createIcons(); } catch(e) {}
+        }
+
+        async function saveAsset() {
+            const name = document.getElementById('asset-name').value.trim();
+            const category = document.getElementById('asset-category').value.trim();
+            const last_service_date = document.getElementById('asset-last-service').value;
+            const next_service_date = document.getElementById('asset-next-service').value;
+            const notes = document.getElementById('asset-notes').value.trim();
+
+            if (!name || !category) { showToast('error', 'Name and category are required'); return; }
+
+            const data = await apiFetch('/health-record', {
+                method: 'POST',
+                body: JSON.stringify({ name, category, last_service_date: last_service_date || null, next_service_date: next_service_date || null, notes: notes || null })
+            });
+
+            if (data && data.id) {
+                showToast('success', 'Asset added!');
+                document.getElementById('add-asset-form').classList.add('hidden');
+                document.getElementById('asset-name').value = '';
+                document.getElementById('asset-category').value = '';
+                document.getElementById('asset-last-service').value = '';
+                document.getElementById('asset-next-service').value = '';
+                document.getElementById('asset-notes').value = '';
+                loadAssets();
+            }
+        }
+
+        async function deleteAsset(id) {
+            const data = await apiFetch('/health-record/' + id, { method: 'DELETE' });
+            if (data) { showToast('success', 'Asset deleted'); loadAssets(); }
+        }
+
+        async function detectIssue() {
+            const description = document.getElementById('detect-description').value.trim();
+            if (!description || description.length < 10) {
+                showToast('error', 'Please describe your problem in detail (at least 10 characters)');
+                return;
+            }
+
+            const btn = document.getElementById('detect-btn');
+            btn.innerHTML = '<span class="loading-spinner"></span> Analyzing...';
+            btn.disabled = true;
+
+            const data = await apiFetch('/detect-issue', {
+                method: 'POST',
+                body: JSON.stringify({ description })
+            });
+
+            btn.innerHTML = '<i data-lucide="search" class="w-5 h-5 mr-2"></i> Detect Issue';
+            btn.disabled = false;
+
+            const result = document.getElementById('detect-result');
+            result.classList.remove('hidden');
+
+            if (data && data.detected) {
+                result.innerHTML = `
+                    <div class="bg-green-50 border border-green-200 rounded-xl p-4">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <div class="bg-green-500 w-10 h-10 rounded-full flex items-center justify-center text-white"><i data-lucide="check" class="w-5 h-5"></i></div>
+                            <div><h3 class="font-bold text-gray-800">Issue Detected!</h3><p class="text-sm text-gray-600">Confidence: ${data.confidence}%</p></div>
+                        </div>
+                        <p class="text-sm text-gray-700 mb-3">${data.message}</p>
+                        <button onclick="selectService('${data.suggestedService.id}')" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold">Book a ${data.suggestedService.name}</button>
+                    </div>
+                `;
+            } else {
+                result.innerHTML = `
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <div class="bg-yellow-500 w-10 h-10 rounded-full flex items-center justify-center text-white"><i data-lucide="help-circle" class="w-5 h-5"></i></div>
+                            <div><h3 class="font-bold text-gray-800">Could Not Identify</h3></div>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-3">${data ? data.message : 'Try describing the issue in more detail.'}</p>
+                        <button onclick="showScreen('services')" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold">Browse All Services</button>
+                    </div>
+                `;
+            }
+            try { lucide.createIcons(); } catch(e) {}
+        }
+
+        const origShowScreen = window.showScreen || function(){};
         document.addEventListener('DOMContentLoaded', async () => {
             setupOtpInputs();
 

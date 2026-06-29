@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const http = require('http');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const { getDb, query, queryOne, execute, persistSync } = require('./database');
@@ -14,6 +15,12 @@ const workerRoutes = require('./routes/workers');
 const bookingRoutes = require('./routes/bookings');
 const adminRoutes = require('./routes/admin');
 const locationRoutes = require('./routes/location');
+const trustScoreRoutes = require('./routes/trustscore');
+const healthRecordRoutes = require('./routes/healthrecord');
+const detectRoutes = require('./routes/detect');
+
+const { setupSocket } = require('./services/socket');
+const { setupCronJobs } = require('./services/cron');
 
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
@@ -38,7 +45,10 @@ async function start() {
   console.log('[Server] NODE_ENV:', process.env.NODE_ENV);
 
   const app = express();
+  const server = http.createServer(app);
   const PORT = parseInt(process.env.PORT) || 3001;
+
+  const io = setupSocket(server);
 
   app.use(helmet({
     contentSecurityPolicy: false,
@@ -76,6 +86,9 @@ async function start() {
     console.error('[Server] Seed check failed:', err.message);
   }
 
+  setupCronJobs();
+  app.set('io', io);
+
   app.get('/api/ping', (req, res) => res.json({ ok: true, time: Date.now() }));
 
   app.use('/api/auth', authRoutes);
@@ -84,6 +97,9 @@ async function start() {
   app.use('/api/bookings', bookingRoutes);
   app.use('/api/admin', adminRoutes);
   app.use('/api/location', locationRoutes);
+  app.use('/api/trust-score', trustScoreRoutes);
+  app.use('/api/health-record', healthRecordRoutes);
+  app.use('/api/detect-issue', detectRoutes);
 
   app.get('/api/stats', (req, res) => {
     try {
@@ -144,7 +160,7 @@ async function start() {
     res.status(500).json({ error: 'Internal server error' });
   });
 
-  app.listen(PORT, '0.0.0.0', () => {
+  server.listen(PORT, '0.0.0.0', () => {
     console.log(`[Server] GharSathi API running on port ${PORT}`);
   });
 }
