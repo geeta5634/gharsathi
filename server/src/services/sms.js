@@ -1,6 +1,7 @@
 require('dotenv').config();
 
 const SMS_PROVIDER = process.env.SMS_PROVIDER || 'console';
+
 const FAST2SMS_API_KEY = process.env.FAST2SMS_API_KEY || '';
 const FAST2SMS_SENDER_ID = process.env.FAST2SMS_SENDER_ID || 'TXTIND';
 const SMS_ROUTE = process.env.SMS_ROUTE || 'v3';
@@ -8,6 +9,24 @@ const SMS_ROUTE = process.env.SMS_ROUTE || 'v3';
 const RAPID_API_KEY = process.env.RAPID_API_KEY || '';
 const RAPID_API_HOST = process.env.RAPID_API_HOST || '';
 const RAPID_API_URL = process.env.RAPID_API_URL || '';
+
+const RATE_LIMIT_WINDOW = 60 * 1000;
+const MAX_PER_WINDOW = 5;
+const smsRateLimit = new Map();
+
+function checkRateLimit(phone) {
+  const now = Date.now();
+  const entry = smsRateLimit.get(phone);
+  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW) {
+    smsRateLimit.set(phone, { windowStart: now, count: 1 });
+    return true;
+  }
+  if (entry.count >= MAX_PER_WINDOW) {
+    return false;
+  }
+  entry.count++;
+  return true;
+}
 
 function toInternational(phone) {
   const clean = phone.replace(/\D/g, '');
@@ -17,10 +36,15 @@ function toInternational(phone) {
 }
 
 async function sendSMS(phone, message) {
-  if (!phone || !message) return { success: false, error: 'Phone and message are required' };
+  if (!phone) return { success: false, error: 'Phone is required' };
 
   const phoneClean = phone.replace(/\D/g, '');
   if (phoneClean.length < 10) return { success: false, error: 'Invalid phone number' };
+
+  if (!checkRateLimit(phoneClean)) {
+    console.warn(`[SMS] Rate limited: ${phoneClean}`);
+    return { success: false, error: 'Too many requests. Try again later.' };
+  }
 
   if (SMS_PROVIDER === 'fast2sms' && FAST2SMS_API_KEY) {
     try {
@@ -64,9 +88,10 @@ async function sendSMS(phone, message) {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 8000);
 
-      const body = JSON.stringify({
-        target: toInternational(phone),
-      });
+      const intlPhone = toInternational(phone);
+      const body = JSON.stringify({ target: intlPhone });
+
+      console.log(`[SMS] Sending via RapidAPI to ${intlPhone}...`);
 
       const res = await fetch(RAPID_API_URL, {
         method: 'POST',
@@ -81,13 +106,15 @@ async function sendSMS(phone, message) {
 
       clearTimeout(timeout);
       const data = await res.json();
+      console.log(`[SMS] RapidAPI response: ${JSON.stringify(data)}`);
 
-      if (data.status === 'success') {
-        console.log(`[SMS] Sent to ${phoneClean} via RapidAPI (cost: ${data.cost})`);
-        return { success: true, provider: 'rapidapi', verify_code: data.verify_code, message: data.message };
+      if (data.status === 'success' || data.verify_code) {
+        const code = data.verify_code || data.otp || data.code || data.pin || '';
+        console.log(`[SMS] Sent via RapidAPI (cost: ${data.cost || 'N/A'})`);
+        return { success: true, provider: 'rapidapi', verify_code: code, message: data.message };
       }
       console.warn(`[SMS] RapidAPI failed: ${JSON.stringify(data)}`);
-      return { success: false, provider: 'rapidapi', error: data.status || 'RapidAPI error' };
+      return { success: false, provider: 'rapidapi', error: data.message || data.status || 'RapidAPI error' };
     } catch (err) {
       console.warn(`[SMS] RapidAPI error: ${err.message}`);
       return { success: false, provider: 'rapidapi', error: err.message };
@@ -99,9 +126,6 @@ async function sendSMS(phone, message) {
 }
 
 async function sendOTP(phone, otp) {
-  if (SMS_PROVIDER === 'rapidapi') {
-    return sendSMS(phone, '');
-  }
   const message = `Your GharSathi OTP is ${otp}. Valid for 5 minutes. - GharSathi Team`;
   return sendSMS(phone, message);
 }

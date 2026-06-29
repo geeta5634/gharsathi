@@ -36,11 +36,23 @@ function runSchema() {
   db.run("CREATE TABLE IF NOT EXISTS bookings (id TEXT PRIMARY KEY, customer_id TEXT NOT NULL, worker_id TEXT, service_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'confirmed', 'in-progress', 'completed', 'cancelled')), booking_date TEXT NOT NULL, booking_time TEXT NOT NULL, address TEXT NOT NULL, visit_charge REAL DEFAULT 299, service_charge REAL DEFAULT 500, platform_fee REAL DEFAULT 49, total_amount REAL, payment_method TEXT DEFAULT 'cash' CHECK(payment_method IN ('cash', 'online')), payment_status TEXT DEFAULT 'pending' CHECK(payment_status IN ('pending', 'paid', 'failed')), notes TEXT, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now')), FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (worker_id) REFERENCES workers(id) ON DELETE SET NULL, FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE)");
   db.run('CREATE TABLE IF NOT EXISTS reviews (id INTEGER PRIMARY KEY AUTOINCREMENT, booking_id TEXT NOT NULL, customer_id TEXT NOT NULL, worker_id TEXT NOT NULL, rating INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5), comment TEXT, created_at TEXT DEFAULT (datetime(\'now\')), FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE, FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (worker_id) REFERENCES workers(id) ON DELETE CASCADE)');
   db.run("CREATE TABLE IF NOT EXISTS earnings (id TEXT PRIMARY KEY, worker_id TEXT NOT NULL, booking_id TEXT NOT NULL, amount REAL NOT NULL CHECK(amount > 0), type TEXT NOT NULL DEFAULT 'booking', status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'paid', 'cancelled')), payout_date TEXT, created_at TEXT DEFAULT (datetime('now')), FOREIGN KEY (worker_id) REFERENCES workers(id) ON DELETE CASCADE, FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE)");
+  db.run("CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, refresh_hash TEXT NOT NULL, user_agent TEXT DEFAULT '', ip TEXT DEFAULT '', expires_at TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')), revoked INTEGER DEFAULT 0, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)");
 }
 
+function persistSync() {
+  if (!db) return;
+  try {
+    const data = db.export();
+    fs.writeFileSync(DB_PATH, Buffer.from(data));
+  } catch (err) {
+    console.error('[DB] Persist failed:', err.message);
+  }
+}
+
+let persistTimer = null;
 function persist() {
-  const data = db.export();
-  fs.writeFileSync(DB_PATH, Buffer.from(data));
+  if (persistTimer) clearTimeout(persistTimer);
+  persistTimer = setTimeout(persistSync, 200);
 }
 
 function query(sql, ...params) {
@@ -77,4 +89,4 @@ function execute(sql, ...params) {
   }
 }
 
-module.exports = { getDb, persist, query, queryOne, execute };
+module.exports = { getDb, persist, persistSync, query, queryOne, execute };

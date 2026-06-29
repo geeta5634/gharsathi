@@ -223,12 +223,34 @@
             const headers = { 'Content-Type': 'application/json' };
             if (token) headers['Authorization'] = 'Bearer ' + token;
             try {
-                const res = await fetch(API + path, { ...opts, headers });
+                let res = await fetch(API + path, { ...opts, headers });
                 if (res.status === 401 && token) {
-                    token = null; localStorage.removeItem('gs_worker_token');
-                    showScreen('login');
-                    showToast('error', 'Session expired. Please login again.');
-                    return null;
+                    const refreshToken = localStorage.getItem('gs_worker_refresh');
+                    if (refreshToken) {
+                        const refreshRes = await fetch(API + '/auth/refresh', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ refreshToken })
+                        });
+                        if (refreshRes.ok) {
+                            const refreshData = await refreshRes.json();
+                            token = refreshData.accessToken;
+                            localStorage.setItem('gs_worker_token', token);
+                            localStorage.setItem('gs_worker_refresh', refreshData.refreshToken || '');
+                            headers['Authorization'] = 'Bearer ' + token;
+                            res = await fetch(API + path, { ...opts, headers });
+                        } else {
+                            token = null; localStorage.removeItem('gs_worker_token'); localStorage.removeItem('gs_worker_refresh');
+                            showScreen('login');
+                            showToast('error', 'Session expired. Please login again.');
+                            return null;
+                        }
+                    } else {
+                        token = null; localStorage.removeItem('gs_worker_token');
+                        showScreen('login');
+                        showToast('error', 'Session expired. Please login again.');
+                        return null;
+                    }
                 }
                 return res.json();
             } catch(e) {
@@ -266,21 +288,20 @@
             btn.innerHTML = '<span class="loading-spinner"></span> Sending...';
             btn.disabled = true;
             const data = await apiFetch('/auth/send-otp', { method: 'POST', body: JSON.stringify({ phone }) });
-            btn.innerHTML = 'Send OTP';
-            btn.disabled = false;
-            if (data && data.message) {
-                document.getElementById('otp-section').classList.remove('hidden');
-                document.getElementById('send-otp-btn').textContent = 'Resend OTP';
-                const otpDisplay = document.getElementById('otp-display');
-                if (data.debug) { otpDisplay.textContent = 'Your OTP: ' + data.debug; otpDisplay.style.display = 'block'; }
-                showToast('success', 'OTP sent!');
-                let sec = 30;
-                const t = document.getElementById('otp-timer');
-                if (otpTimer) clearInterval(otpTimer);
-                otpTimer = setInterval(() => { sec--; t.textContent = sec > 0 ? `Resend in ${sec}s` : ''; if (sec <= 0) { clearInterval(otpTimer); btn.disabled = false; } }, 1000);
-                document.querySelector('.otp-input').focus();
-                setupOtpInputs();
+            if (!data || !data.message) { btn.innerHTML = 'Send OTP'; btn.disabled = false; return; }
+            if (data.debug) {
+                document.getElementById('otp-display').textContent = 'Your OTP: ' + data.debug;
+                document.getElementById('otp-display').style.display = 'block';
             }
+            document.getElementById('otp-section').classList.remove('hidden');
+            document.getElementById('send-otp-btn').textContent = 'Resend OTP';
+            showToast('success', 'OTP sent!');
+            let sec = 30;
+            const t = document.getElementById('otp-timer');
+            if (otpTimer) clearInterval(otpTimer);
+            otpTimer = setInterval(() => { sec--; t.textContent = sec > 0 ? `Resend in ${sec}s` : ''; if (sec <= 0) { clearInterval(otpTimer); btn.disabled = false; } }, 1000);
+            document.querySelector('.otp-input').focus();
+            setupOtpInputs();
         }
 
         function setupOtpInputs() {
@@ -293,13 +314,6 @@
                 };
                 input.onkeydown = function(e) { if (e.key === 'Backspace' && !this.value && idx > 0) arr[idx - 1].focus(); if (e.key === 'Enter') verifyOtp(); };
             });
-            document.getElementById('otp-display').onclick = function() {
-                const otp = this.textContent.replace('Your OTP: ', '').trim();
-                if (otp.length === 6) {
-                    inputs.forEach((inp, i) => { inp.value = otp[i]; });
-                    setTimeout(verifyOtp, 200);
-                }
-            };
         }
 
         async function verifyOtp() {
@@ -309,23 +323,28 @@
             const btn = document.getElementById('verify-otp-btn');
             btn.innerHTML = '<span class="loading-spinner"></span> Verifying...';
             btn.disabled = true;
-            const data = await apiFetch('/auth/verify-otp', { method: 'POST', body: JSON.stringify({ phone, otp }) });
+            try {
+                const data = await apiFetch('/auth/verify-otp', { method: 'POST', body: JSON.stringify({ phone, otp }) });
+                if (data && data.accessToken) {
+                    token = data.accessToken;
+                    currentUser = data.user;
+                    localStorage.setItem('gs_worker_token', token);
+                    localStorage.setItem('gs_worker_refresh', data.refreshToken || '');
+                    await loadWorkerProfile();
+                    if (workerProfile) {
+                        onLoginSuccess();
+                    } else if (data.user.role === 'customer') {
+                        showToast('info', 'Switch to Customer App for booking services');
+                        window.location.href = 'customer.html';
+                    } else {
+                        showToast('error', 'No worker profile. Please register.');
+                    }
+                }
+            } catch (e) {
+                showToast('error', e.message || 'Invalid OTP');
+            }
             btn.innerHTML = 'Verify & Login';
             btn.disabled = false;
-            if (data && data.token) {
-                token = data.token;
-                currentUser = data.user;
-                localStorage.setItem('gs_worker_token', token);
-                await loadWorkerProfile();
-                if (workerProfile) {
-                    onLoginSuccess();
-                } else if (data.user.role === 'customer') {
-                    showToast('info', 'Switch to Customer App for booking services');
-                    window.location.href = 'customer.html';
-                } else {
-                    showToast('error', 'No worker profile. Please register.');
-                }
-            }
         }
 
         async function loadWorkerProfile() {
@@ -568,10 +587,19 @@
             }
         }
 
-        function logout() {
+        async function logout() {
             stopSharingLocation();
+            const refreshToken = localStorage.getItem('gs_worker_refresh');
+            if (refreshToken) {
+                await fetch(API + '/auth/logout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ refreshToken })
+                });
+            }
             token = null; currentUser = null; workerProfile = null;
             localStorage.removeItem('gs_worker_token');
+            localStorage.removeItem('gs_worker_refresh');
             document.getElementById('login').style.display = 'flex';
             document.getElementById('login').classList.add('active');
             document.getElementById('otp-section').classList.add('hidden');

@@ -6,7 +6,7 @@ const rateLimit = require('express-rate-limit');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
-const { getDb, query, queryOne, execute } = require('./database');
+const { getDb, query, queryOne, execute, persistSync } = require('./database');
 
 const authRoutes = require('./routes/auth');
 const serviceRoutes = require('./routes/services');
@@ -31,6 +31,12 @@ const corsOptions = {
 };
 
 async function start() {
+  console.log('[Server] Starting GharSathi server...');
+  console.log('[Server] Node version:', process.version);
+  console.log('[Server] CWD:', process.cwd());
+  console.log('[Server] PORT env:', process.env.PORT);
+  console.log('[Server] NODE_ENV:', process.env.NODE_ENV);
+
   const app = express();
   const PORT = parseInt(process.env.PORT) || 3001;
 
@@ -50,10 +56,24 @@ async function start() {
     next();
   });
 
-  await getDb();
+  try {
+    await getDb();
+    console.log('[Server] Database initialized successfully');
+  } catch (err) {
+    console.error('[Server] Database initialization FAILED:', err.message);
+    console.error(err.stack);
+    process.exit(1);
+  }
 
-  if (queryOne('SELECT COUNT(*) as c FROM services').c === 0) {
-    await seedIfEmpty();
+  try {
+    const count = queryOne('SELECT COUNT(*) as c FROM services');
+    if (!count || count.c === 0) {
+      console.log('[Server] Database empty — seeding...');
+      await seedIfEmpty();
+      console.log('[Server] Seeding complete');
+    }
+  } catch (err) {
+    console.error('[Server] Seed check failed:', err.message);
   }
 
   app.get('/api/ping', (req, res) => res.json({ ok: true, time: Date.now() }));
@@ -124,8 +144,8 @@ async function start() {
     res.status(500).json({ error: 'Internal server error' });
   });
 
-  app.listen(PORT, () => {
-    console.log(`GharSathi API running at http://localhost:${PORT}`);
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`[Server] GharSathi API running on port ${PORT}`);
   });
 }
 
@@ -186,6 +206,7 @@ async function seedIfEmpty() {
   execute('INSERT INTO reviews (booking_id, customer_id, worker_id, rating, comment) VALUES (?, ?, ?, ?, ?)',
     'GSABC001', 'u1', 'w1', 4, 'Knowledgeable and polite.');
 
+  persistSync();
   console.log('Database seeded successfully!');
   console.log('--- Test Credentials ---');
   console.log(`Customer: 9876543210 / ${SEED_PASSWORD}`);
@@ -195,6 +216,7 @@ async function seedIfEmpty() {
 }
 
 start().catch(err => {
-  console.error('Failed to start server:', err);
+  console.error('[Server] Fatal startup error:', err.message);
+  console.error(err.stack);
   process.exit(1);
 });

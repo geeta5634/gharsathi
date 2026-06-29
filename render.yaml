@@ -3,11 +3,17 @@ services:
     name: gharsathi
     env: node
     region: singapore
-    buildCommand: npm install --prefix server
+    buildCommand: cd server && npm install
     startCommand: node server/src/server.js
+    disk:
+      name: gharsathi-data
+      mountPath: /data
+      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
+      - key: DB_PATH
+        value: /data/gharsathi.db
       - key: JWT_SECRET
         generateValue: true
       - key: SMS_PROVIDER
