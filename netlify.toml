@@ -1,0 +1,9 @@
+[build]
+  command = "npx prisma generate && next build --webpack"
+  publish = ".next"
+
+[build.environment]
+  NEXT_PRIVATE_STANDALONE = "true"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
