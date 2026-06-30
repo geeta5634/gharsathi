@@ -103,8 +103,8 @@ async function start() {
 
   app.use((req, res, next) => {
     res.setHeader('Permissions-Policy', 'geolocation=(self "https://*.tile.openstreetmap.org"), camera=(), microphone=(), payment=()');
-    res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
-    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+    res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
     if (req.path.startsWith('/api/')) {
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     }
