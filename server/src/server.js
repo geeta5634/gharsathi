@@ -72,9 +72,10 @@ async function start() {
       'https://cdn.jsdelivr.net'],
     fontSrc: ["'self'", 'https://fonts.gstatic.com'],
     imgSrc: ["'self'", 'data:', 'https://i.pravatar.cc',
-      'https://*.tile.openstreetmap.org', 'https://unpkg.com'],
+      'https://*.tile.openstreetmap.org', 'https://unpkg.com',
+      'https://*.onrender.com'],
     connectSrc: ["'self'", 'https://nominatim.openstreetmap.org',
-      'wss://*.opencode.ai'],
+      'wss://*.onrender.com', 'https://*.onrender.com'],
     frameAncestors: ["'none'"],
     formAction: ["'self'"],
     baseUri: ["'self'"],
@@ -102,7 +103,7 @@ async function start() {
   app.use(passport.initialize());
 
   app.use((req, res, next) => {
-    res.setHeader('Permissions-Policy', 'geolocation=(self "https://*.tile.openstreetmap.org"), camera=(), microphone=(), payment=()');
+    res.setHeader('Permissions-Policy', 'geolocation=(self "https://*.tile.openstreetmap.org" "https://*.onrender.com"), camera=(), microphone=(), payment=()');
     res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
     res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
     if (req.path.startsWith('/api/')) {
@@ -193,6 +194,13 @@ async function start() {
     } catch (err) {
       res.status(500).json({ error: 'Failed to fetch stats' });
     }
+  });
+
+  app.use((req, res, next) => {
+    if (req.path.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    }
+    next();
   });
 
   app.use(express.static(path.join(__dirname, '..', '..'), {
