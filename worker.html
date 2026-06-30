@@ -315,7 +315,7 @@
             }
         }
 
-        function sendOtp() {
+        async function sendOtp() {
             const phone = document.getElementById('login-phone').value.trim();
             if (!phone || phone.length < 10) { showToast('error', 'Enter a valid 10-digit mobile number'); return; }
             const btn = document.getElementById('send-otp-btn');

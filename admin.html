@@ -64,10 +64,14 @@
                 <h2 class="text-2xl font-bold text-gray-800">Dashboard</h2>
                 <p class="text-sm text-gray-500" id="header-subtitle">Overview</p>
             </div>
-            <div class="flex items-center space-x-4">
-                <div class="hidden md:flex items-center bg-white border border-gray-200 rounded-full px-4 py-2"><i data-lucide="calendar" class="w-4 h-4 text-gray-400 mr-2"></i><span class="text-sm text-gray-600" id="current-date"></span></div>
-                <div class="flex items-center space-x-3 bg-white border border-gray-200 rounded-full pl-2 pr-4 py-1 cursor-pointer" onclick="showSection('dashboard-section')"><div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold">A</div><span class="text-sm font-medium text-gray-700 hidden md:block">Admin</span></div>
-            </div>
+                <div class="flex items-center space-x-4">
+                    <div class="hidden md:flex items-center bg-white border border-gray-200 rounded-full px-4 py-2"><i data-lucide="calendar" class="w-4 h-4 text-gray-400 mr-2"></i><span class="text-sm text-gray-600" id="current-date"></span></div>
+                    <div class="flex items-center space-x-2 bg-white border border-gray-200 rounded-full pl-2 pr-4 py-1">
+                        <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold">A</div>
+                        <span class="text-sm font-medium text-gray-700 hidden md:block">Admin</span>
+                        <button onclick="logoutAdmin()" class="text-red-500 hover:text-red-700 ml-2" title="Logout"><i data-lucide="log-out" class="w-4 h-4"></i></button>
+                    </div>
+                </div>
         </header>
 
         <div id="mobile-sidebar" class="hidden fixed inset-0 z-50 bg-black/50 md:hidden" onclick="toggleMobileSidebar()">
@@ -244,6 +248,7 @@
         const API = window.location.origin + '/api';
         let servicesCache = [];
         let charts = {};
+        let adminToken = localStorage.getItem('gs_admin_token');
 
         function showToast(type, msg) {
             const t = document.getElementById('toast');
@@ -268,6 +273,80 @@
 
         document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-IN', { day:'numeric', month:'long', year:'numeric' });
 
+        async function adminFetch(path, opts = {}) {
+            const headers = { 'Content-Type': 'application/json' };
+            if (adminToken) headers['Authorization'] = 'Bearer ' + adminToken;
+            let res = await fetch(API + path, { ...opts, headers });
+            if (res.status === 401) {
+                showLoginScreen();
+                return null;
+            }
+            return res.json();
+        }
+
+        function showLoginScreen() {
+            document.querySelector('aside').classList.add('hidden');
+            document.querySelector('header').classList.add('hidden');
+            document.querySelector('.p-8').innerHTML = `
+                <div class="min-h-screen flex items-center justify-center">
+                    <div class="bg-white rounded-2xl p-8 shadow-xl border border-gray-100 w-full max-w-md">
+                        <div class="text-center mb-8">
+                            <div class="bg-blue-600 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                                <i data-lucide="home" class="w-10 h-10 text-white"></i>
+                            </div>
+                            <h1 class="text-2xl font-bold text-gray-800">GharSathi Admin</h1>
+                            <p class="text-gray-500 text-sm mt-1">Please login to continue</p>
+                        </div>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Admin Phone</label>
+                                <input type="tel" id="admin-phone" value="9876543200" class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                                <input type="password" id="admin-password" value="password123" class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <button onclick="adminLogin()" id="admin-login-btn" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition">Login</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            try { lucide.createIcons(); } catch(e) {}
+        }
+
+        async function adminLogin() {
+            const phone = document.getElementById('admin-phone').value.trim();
+            const password = document.getElementById('admin-password').value;
+            const btn = document.getElementById('admin-login-btn');
+            btn.innerHTML = '<span class="loading-spinner"></span> Logging in...';
+            btn.disabled = true;
+            const res = await fetch(API + '/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone, password })
+            });
+            const data = await res.json();
+            btn.innerHTML = 'Login';
+            btn.disabled = false;
+            if (data && data.accessToken) {
+                if (data.user.role !== 'admin') {
+                    showToast('error', 'Access denied. Admin only.');
+                    return;
+                }
+                adminToken = data.accessToken;
+                localStorage.setItem('gs_admin_token', adminToken);
+                location.reload();
+            } else {
+                showToast('error', data?.error || 'Login failed');
+            }
+        }
+
+        function logoutAdmin() {
+            adminToken = null;
+            localStorage.removeItem('gs_admin_token');
+            location.reload();
+        }
+
         function showModal(html) {
             document.getElementById('modal-box').innerHTML = html;
             document.getElementById('modal-overlay').classList.add('active');
@@ -282,6 +361,7 @@
         // ─── DASHBOARD ───
         async function loadDashboard() {
             const data = await fetch(API + '/stats').then(r => r.json()).catch(() => null);
+            if (data === null) { showLoginScreen(); return; }
             if (!data) return;
 
             document.getElementById('stats-cards').innerHTML = [
@@ -400,10 +480,10 @@
 
             if (!name || !phone) { showToast('error', 'Name and phone are required'); return; }
 
-            const data = await fetch(API+'/admin/workers', {
-                method:'POST', headers:{'Content-Type':'application/json'},
+            const data = await adminFetch('/admin/workers', {
+                method:'POST',
                 body: JSON.stringify({ name, phone, service_id, experience, visit_charge, about, skills })
-            }).then(r => r.json()).catch(() => null);
+            });
 
             if (data && data.id) {
                 showToast('success', 'Worker added!');
@@ -420,14 +500,15 @@
 
         async function deleteWorker(id, name) {
             if (!confirm(`Delete worker "${name}"? This cannot be undone.`)) return;
-            const data = await fetch(API+'/workers/'+id, { method:'DELETE', headers:{'Content-Type':'application/json'} }).then(r=>r.json()).catch(()=>null);
+            const data = await adminFetch('/workers/'+id, { method:'DELETE' });
             if (data) { showToast('success', 'Worker deleted'); loadAdminWorkers(); }
             else { showToast('error', 'Failed to delete worker'); }
         }
 
         // ─── CUSTOMERS ───
         async function loadAdminCustomers() {
-            const data = await fetch(API+'/admin/users/customers', { headers:{'Content-Type':'application/json'} }).then(r=>r.json()).catch(()=>[]);
+            const data = await adminFetch('/admin/users/customers');
+            if (!data) return;
             document.getElementById('customers-table').innerHTML = Array.isArray(data) && data.length ? data.map(c => `
                 <tr class="hover:bg-gray-50">
                     <td class="px-6 py-4 text-sm font-medium text-gray-900">${c.name}</td>
@@ -441,9 +522,8 @@
 
         // ─── BOOKINGS ───
         async function loadAdminBookings() {
-            try {
-                const data = await fetch(API+'/bookings', { headers:{'Content-Type':'application/json'} }).then(r=>r.json()).catch(()=>[]);
-                if (!Array.isArray(data)) return;
+            const data = await adminFetch('/bookings');
+            if (!data || !Array.isArray(data)) return;
                 document.getElementById('bookings-table').innerHTML = data.length ? data.map(b => `
                     <tr class="hover:bg-gray-50">
                         <td class="px-6 py-4 text-sm font-mono text-gray-900">#${b.id}</td>
@@ -456,7 +536,6 @@
                         <td class="px-6 py-4 text-sm text-gray-600 capitalize">${b.payment_method||'cash'}</td>
                     </tr>
                 `).join('') : '<tr><td colspan="8" class="px-6 py-8 text-center text-gray-500">No bookings</td></tr>';
-            } catch(e) {}
         }
 
         // ─── SERVICES ───
@@ -522,9 +601,9 @@
                 `;
             }
 
-            try {
-                const data = await fetch(API+'/bookings', { headers:{'Content-Type':'application/json'} }).then(r=>r.json()).catch(()=>[]);
-                const earnings = Array.isArray(data) ? data.filter(b => b.status === 'completed' || b.status === 'confirmed').slice(0, 20) : [];
+            const bData = await adminFetch('/bookings');
+            if (bData && Array.isArray(bData)) {
+                const earnings = bData.filter(b => b.status === 'completed' || b.status === 'confirmed').slice(0, 20);
                 document.getElementById('earnings-table').innerHTML = earnings.length ? earnings.map(b => `
                     <tr class="hover:bg-gray-50">
                         <td class="px-6 py-4 text-sm font-mono text-gray-900">#${b.id}</td>
@@ -533,17 +612,33 @@
                         <td class="px-6 py-4"><span class="px-2 py-1 text-xs rounded-full ${b.status==='completed'?'bg-green-100 text-green-700':'bg-blue-100 text-blue-700'} capitalize">${b.status==='completed'?'Paid':'Pending'}</span></td>
                     </tr>
                 `).join('') : '<tr><td colspan="4" class="px-6 py-8 text-center text-gray-500">No payment records</td></tr>';
-            } catch(e) {}
+            }
         }
 
         // ─── EXPORT ───
-        function exportData(type) {
-            window.open(API+'/admin/export/'+type, '_blank');
-            showToast('success', `Exporting ${type}...`);
+        async function exportData(type) {
+            if (!adminToken) { showToast('error', 'Please login first'); return; }
+            const res = await fetch(API+'/admin/export/'+type, {
+                headers: { 'Authorization': 'Bearer ' + adminToken }
+            });
+            if (!res.ok) { showToast('error', 'Export failed'); return; }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = type + '.csv'; a.click();
+            URL.revokeObjectURL(url);
+            showToast('success', `${type} exported!`);
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            loadDashboard();
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (adminToken) {
+                const user = await adminFetch('/auth/me');
+                if (user && user.role === 'admin') {
+                    loadDashboard();
+                }
+            } else {
+                showLoginScreen();
+            }
             try { lucide.createIcons(); } catch(e) {}
         });
     </script>
