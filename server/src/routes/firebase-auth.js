@@ -2,7 +2,8 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const { queryOne, execute } = require('../database');
-const { verifyIdToken } = require('../services/firebase');
+const firebaseService = require('../services/firebase');
+const { verifyIdToken } = firebaseService;
 const {
   generateAccessToken,
   generateRefreshToken,
@@ -99,6 +100,7 @@ router.get('/firebase-config', (req, res) => {
     storageBucket: process.env.FIREBASE_STORAGE_BUCKET || '',
     messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || '',
     appId: process.env.FIREBASE_APP_ID || '',
+    adminInitialized: firebaseService.adminInitialized,
   });
 });
 

@@ -43,5 +43,5 @@ async function getUserByUid(uid) {
   }
 }
 
-module.exports = { admin, verifyIdToken, getUserByUid };
+module.exports = { admin, verifyIdToken, getUserByUid, adminInitialized: initialized };
 
