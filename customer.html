@@ -1130,7 +1130,7 @@
         }
 
         async function sendFirebaseOtp() {
-            initFirebase();
+            await initFirebase();
             if (!firebaseAuth) { showToast('error', 'Firebase not configured. Set FIREBASE_* env vars.'); return; }
             const phone = document.getElementById('login-phone').value.trim();
             if (!phone || phone.length < 10) { showToast('error', 'Enter a valid 10-digit mobile number'); return; }
