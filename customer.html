@@ -527,12 +527,12 @@
                 if (oauthRefresh) localStorage.setItem('gs_refresh', oauthRefresh);
                 window.history.replaceState({}, document.title, window.location.pathname);
                 currentUser = null;
-                apiFetch('/auth/me').then(user => {
+                apiFetch('/auth/me').then(async user => {
                     if (user && user.id) {
                         currentUser = user;
-                        onLoginSuccess();
+                        await onLoginSuccess();
                     }
-                });
+                }).catch(() => {});
             }
         }
 
@@ -557,36 +557,41 @@
         async function apiFetch(path, opts = {}) {
             const headers = { 'Content-Type': 'application/json' };
             if (token) headers['Authorization'] = 'Bearer ' + token;
-            let res = await fetch(API + path, { ...opts, headers });
-            if (res.status === 401 && token) {
-                const refreshToken = localStorage.getItem('gs_refresh');
-                if (refreshToken) {
-                    const refreshRes = await fetch(API + '/auth/refresh', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ refreshToken })
-                    });
-                    if (refreshRes.ok) {
-                        const refreshData = await refreshRes.json();
-                        token = refreshData.accessToken;
-                        localStorage.setItem('gs_token', token);
-                        localStorage.setItem('gs_refresh', refreshData.refreshToken || '');
-                        headers['Authorization'] = 'Bearer ' + token;
-                        res = await fetch(API + path, { ...opts, headers });
+            try {
+                let res = await fetch(API + path, { ...opts, headers });
+                if (res.status === 401 && token) {
+                    const refreshToken = localStorage.getItem('gs_refresh');
+                    if (refreshToken) {
+                        const refreshRes = await fetch(API + '/auth/refresh', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ refreshToken })
+                        });
+                        if (refreshRes.ok) {
+                            const refreshData = await refreshRes.json();
+                            token = refreshData.accessToken;
+                            localStorage.setItem('gs_token', token);
+                            localStorage.setItem('gs_refresh', refreshData.refreshToken || '');
+                            headers['Authorization'] = 'Bearer ' + token;
+                            res = await fetch(API + path, { ...opts, headers });
+                        } else {
+                            token = null; localStorage.removeItem('gs_token'); localStorage.removeItem('gs_refresh');
+                            showScreen('login');
+                            showToast('error', 'Session expired. Please login again.');
+                            return null;
+                        }
                     } else {
-                        token = null; localStorage.removeItem('gs_token'); localStorage.removeItem('gs_refresh');
+                        token = null; localStorage.removeItem('gs_token');
                         showScreen('login');
                         showToast('error', 'Session expired. Please login again.');
                         return null;
                     }
-                } else {
-                    token = null; localStorage.removeItem('gs_token');
-                    showScreen('login');
-                    showToast('error', 'Session expired. Please login again.');
-                    return null;
                 }
+                return res.json();
+            } catch(e) {
+                showToast('error', 'Network error');
+                return null;
             }
-            return res.json();
         }
 
         function showToast(type, msg) {
@@ -676,9 +681,9 @@
             await loadWorkers(serviceId);
         }
 
-        function showEmergency() {
+        async function showEmergency() {
             const emSvc = servicesCache.find(s => s.name.toLowerCase() === 'plumber') || servicesCache[0];
-            if (emSvc) selectService(emSvc.id);
+            if (emSvc) await selectService(emSvc.id);
         }
 
         async function loadWorkers(serviceId, availableOnly = false) {
@@ -695,10 +700,10 @@
         }
 
         let filterAvailable = false;
-        function toggleAvailabilityFilter() {
+        async function toggleAvailabilityFilter() {
             filterAvailable = !filterAvailable;
             document.getElementById('filter-label').textContent = filterAvailable ? 'Available' : 'All';
-            if (currentService) loadWorkers(currentService.id, filterAvailable);
+            if (currentService) await loadWorkers(currentService.id, filterAvailable);
         }
 
         function renderWorkers(workers) {
@@ -763,7 +768,7 @@
 
         async function loadReviews(workerId) {
             const reviews = document.getElementById('reviews-list');
-            reviews.innerHTML = '<p class="text-center text-gray-400 text-sm py-4">Loading reviews...</p>';
+            reviews.innerHTML = '<p class="text-center text-gray-400 text-sm py-4">No reviews yet</p>';
         }
 
         let selectedSlotTime = null;
@@ -1190,7 +1195,7 @@
             btn.disabled = false;
         }
 
-        function onLoginSuccess() {
+        async function onLoginSuccess() {
             document.getElementById('login').classList.remove('active');
             document.getElementById('login').style.display = 'none';
             document.getElementById('main-header').classList.remove('hidden');
@@ -1201,8 +1206,8 @@
             document.getElementById('header-avatar').textContent = initial;
             connectSocket();
             showScreen('home');
-            loadServices();
-            loadMyBookings();
+            await loadServices();
+            await loadMyBookings();
             showToast('success', 'Welcome, ' + (currentUser.name || 'User') + '!');
         }
 

@@ -347,9 +347,9 @@
                 localStorage.setItem('gs_worker_token', token);
                 if (oauthRefresh) localStorage.setItem('gs_worker_refresh', oauthRefresh);
                 window.history.replaceState({}, document.title, window.location.pathname);
-                loadWorkerProfile().then(valid => {
-                    if (valid) onLoginSuccess();
-                });
+                loadWorkerProfile().then(async valid => {
+                    if (valid) await onLoginSuccess();
+                }).catch(() => {});
             }
         }
 
@@ -463,7 +463,7 @@
             return false;
         }
 
-        function onLoginSuccess() {
+        async function onLoginSuccess() {
             document.getElementById('login').classList.remove('active');
             document.getElementById('login').style.display = 'none';
             const name = currentUser.name || 'Worker';
@@ -478,7 +478,7 @@
             if (workerProfile.avatar) document.getElementById('profile-avatar').src = workerProfile.avatar;
             updateAvailabilityUI();
             showScreen('dashboard');
-            loadBookings();
+            await loadBookings();
             showToast('success', 'Welcome back, ' + name + '!');
         }
 
@@ -648,7 +648,7 @@
                 }
                 apiFetch('/location/worker', {
                     method: 'PUT', body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-                });
+                }).catch(() => {});
             }, (err) => {
                 console.warn('Location error:', err.message);
             }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 });
@@ -828,13 +828,13 @@
             if (data) {
                 showToast('success', 'Date blocked!');
                 document.getElementById('block-date-input').value = '';
-                loadSchedule();
+                await loadSchedule();
             }
         }
 
         async function removeBlockedDate(id) {
             const data = await apiFetch('/availability/worker/blocked-dates/' + id, { method: 'DELETE' });
-            if (data) { showToast('success', 'Block removed'); loadSchedule(); }
+            if (data) { showToast('success', 'Block removed'); await loadSchedule(); }
         }
 
         async function logout() {

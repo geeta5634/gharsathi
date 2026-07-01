@@ -36,20 +36,20 @@ router.post('/firebase', async (req, res) => {
     const email = decoded.email || '';
     const firebaseName = decoded.name || name || '';
 
-    let user = await queryOne('SELECT * FROM users WHERE firebase_uid = ?', firebaseUid);
+    let user = await queryOne('SELECT id, name, phone, role, email, location, avatar, firebase_uid FROM users WHERE firebase_uid = ?', firebaseUid);
 
     if (!user) {
       const id = uuidv4();
       const hashed = await bcrypt.hash(firebaseUid + Date.now(), 10);
       const avatar = `https://i.pravatar.cc/200?u=${id}`;
       const displayName = firebaseName || `User_${firebaseUid.slice(-6)}`;
-      const userRole = role && ['customer', 'worker', 'admin'].includes(role) ? role : 'customer';
+      const userRole = role && ['customer', 'worker'].includes(role) ? role : 'customer';
 
       if (phone) {
         const existing = await queryOne('SELECT id FROM users WHERE phone = ?', phone);
         if (existing) {
           await execute('UPDATE users SET firebase_uid = ? WHERE id = ?', firebaseUid, existing.id);
-          user = await queryOne('SELECT * FROM users WHERE id = ?', existing.id);
+          user = await queryOne('SELECT id, name, phone, role, email, location, avatar, firebase_uid FROM users WHERE id = ?', existing.id);
           const session = await createSession(user, req);
           return res.json({ user: sanitizeUser(user), ...session, isNew: false });
         }
@@ -59,7 +59,7 @@ router.post('/firebase', async (req, res) => {
         'INSERT INTO users (id, name, phone, email, password, role, avatar, firebase_uid) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
         id, sanitizeHtml(displayName), phone, email, hashed, userRole, avatar, firebaseUid
       );
-      user = await queryOne('SELECT * FROM users WHERE id = ?', id);
+      user = await queryOne('SELECT id, name, phone, role, email, location, avatar, firebase_uid FROM users WHERE id = ?', id);
       return res.status(201).json({ user: sanitizeUser(user), ...(await createSession(user, req)), isNew: true });
     }
 
@@ -88,7 +88,13 @@ router.post('/firebase/link-phone', authenticate, async (req, res) => {
     await execute('UPDATE users SET phone = ?, firebase_uid = ? WHERE id = ?', phone, decoded.uid, req.user.id);
     res.json({ message: 'Phone linked successfully', phone });
   } catch (err) {
-    res.status(401).json({ error: 'Invalid Firebase token' });
+    if (err.message?.includes('Firebase not initialized')) {
+      return res.status(500).json({ error: 'Firebase authentication not configured on server' });
+    }
+    if (err.message?.includes('UNIQUE constraint') || err.code === 'SQLITE_CONSTRAINT') {
+      return res.status(409).json({ error: 'Firebase account already linked to another user' });
+    }
+    res.status(401).json({ error: err.message || 'Invalid Firebase token' });
   }
 });
 
