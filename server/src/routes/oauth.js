@@ -32,20 +32,20 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
       const name = profile.displayName || 'Google User';
       const avatar = profile.photos && profile.photos[0] ? profile.photos[0].value : `https://i.pravatar.cc/200?u=google_${googleId}`;
 
-      let user = googleId ? queryOne('SELECT * FROM users WHERE id = ?', `google_${googleId}`) : null;
+      let user = googleId ? await queryOne('SELECT * FROM users WHERE id = ?', `google_${googleId}`) : null;
       if (!user && email) {
-        user = queryOne('SELECT * FROM users WHERE email = ?', email);
+        user = await queryOne('SELECT * FROM users WHERE email = ?', email);
       }
 
       if (!user) {
         const id = `google_${googleId}`;
         const hashed = await bcrypt.hash(googleId + JWT_SECRET, 10);
         const role = req.query.state === 'worker' ? 'worker' : 'customer';
-        execute(
+        await execute(
           'INSERT INTO users (id, name, phone, email, password, role, avatar, location) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
           id, name, null, email, hashed, role, avatar, 'Jodhpur, Rajasthan'
         );
-        user = queryOne('SELECT * FROM users WHERE id = ?', id);
+        user = await queryOne('SELECT * FROM users WHERE id = ?', id);
       }
 
       done(null, { user, state: req.query.state || 'customer' });
@@ -69,20 +69,20 @@ if (FACEBOOK_APP_ID && FACEBOOK_APP_SECRET) {
       const name = profile.displayName || 'Facebook User';
       const avatar = profile.photos && profile.photos[0] ? profile.photos[0].value : `https://i.pravatar.cc/200?u=fb_${facebookId}`;
 
-      let user = facebookId ? queryOne('SELECT * FROM users WHERE id = ?', `fb_${facebookId}`) : null;
+      let user = facebookId ? await queryOne('SELECT * FROM users WHERE id = ?', `fb_${facebookId}`) : null;
       if (!user && email) {
-        user = queryOne('SELECT * FROM users WHERE email = ?', email);
+        user = await queryOne('SELECT * FROM users WHERE email = ?', email);
       }
 
       if (!user) {
         const id = `fb_${facebookId}`;
         const hashed = await bcrypt.hash(facebookId + JWT_SECRET, 10);
         const role = req.query.state === 'worker' ? 'worker' : 'customer';
-        execute(
+        await execute(
           'INSERT INTO users (id, name, phone, email, password, role, avatar, location) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
           id, name, null, email, hashed, role, avatar, 'Jodhpur, Rajasthan'
         );
-        user = queryOne('SELECT * FROM users WHERE id = ?', id);
+        user = await queryOne('SELECT * FROM users WHERE id = ?', id);
       }
 
       done(null, { user, state: req.query.state || 'customer' });

@@ -5,7 +5,7 @@ const { sanitize, sanitizeHtml, validateId, validateDate, validateAddress, valid
 
 const router = express.Router();
 
-router.get('/', authenticate, (req, res) => {
+router.get('/', authenticate, async (req, res) => {
   try {
     const { status } = req.query;
     let sql = `SELECT b.*, c.name as customer_name, c.phone as customer_phone, c.location as customer_location, 
@@ -19,7 +19,7 @@ router.get('/', authenticate, (req, res) => {
       sql += ' AND b.customer_id = ?';
       params.push(req.user.id);
     } else if (req.user.role === 'worker') {
-      const worker = queryOne('SELECT id FROM workers WHERE user_id = ?', req.user.id);
+      const worker = await queryOne('SELECT id FROM workers WHERE user_id = ?', req.user.id);
       if (worker) {
         sql += ' AND (b.worker_id = ? OR b.worker_id IS NULL)';
         params.push(worker.id);
@@ -33,15 +33,15 @@ router.get('/', authenticate, (req, res) => {
       params.push(status);
     }
     sql += ' ORDER BY b.created_at DESC';
-    res.json(query(sql, ...params));
+    res.json(await query(sql, ...params));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.get('/:id', authenticate, (req, res) => {
+router.get('/:id', authenticate, async (req, res) => {
   try {
-    const booking = queryOne(
+    const booking = await queryOne(
       `SELECT b.*, c.name as customer_name, c.phone as customer_phone, c.location as customer_location, c.avatar as customer_avatar,
        w.id as worker_id, w.user_id as worker_user_id, u.name as worker_name, u.phone as worker_phone, u.avatar as worker_avatar,
        s.name as service_name, s.icon as service_icon, s.color as service_color
@@ -51,7 +51,7 @@ router.get('/:id', authenticate, (req, res) => {
       req.params.id
     );
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
-    booking.reviews = query(
+    booking.reviews = await query(
       'SELECT r.*, u.name as customer_name FROM reviews r JOIN users u ON r.customer_id = u.id WHERE r.booking_id = ?',
       req.params.id
     );
@@ -61,7 +61,7 @@ router.get('/:id', authenticate, (req, res) => {
   }
 });
 
-router.post('/', authenticate, (req, res) => {
+router.post('/', authenticate, async (req, res) => {
   try {
     const { worker_id, visit_charge, service_charge, platform_fee, payment_method, notes } = req.body;
 
@@ -79,16 +79,16 @@ router.post('/', authenticate, (req, res) => {
     const addr = validateAddress(req.body.address);
     if (!addr.valid) return res.status(400).json({ error: addr.error });
 
-    const service = queryOne('SELECT id FROM services WHERE id = ?', svcId.value);
+    const service = await queryOne('SELECT id FROM services WHERE id = ?', svcId.value);
     if (!service) return res.status(400).json({ error: 'Invalid service' });
 
     if (worker_id) {
       const wId = validateId(worker_id, 'Worker');
       if (!wId.valid) return res.status(400).json({ error: wId.error });
-      const worker = queryOne('SELECT id FROM workers WHERE id = ?', wId.value);
+      const worker = await queryOne('SELECT id FROM workers WHERE id = ?', wId.value);
       if (!worker) return res.status(400).json({ error: 'Invalid worker' });
 
-      const conflicting = queryOne(
+      const conflicting = await queryOne(
         "SELECT id FROM bookings WHERE worker_id = ? AND booking_date = ? AND booking_time = ? AND status NOT IN ('cancelled')",
         wId.value, bDate.value, bTime
       );
@@ -104,27 +104,27 @@ router.post('/', authenticate, (req, res) => {
     const total = vc + sc + pf;
     const id = 'GS' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 5).toUpperCase();
 
-    execute(
+    await execute(
       'INSERT INTO bookings (id, customer_id, worker_id, service_id, status, booking_date, booking_time, address, visit_charge, service_charge, platform_fee, total_amount, payment_method, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       id, req.user.id, worker_id || null, svcId.value, 'pending', bDate.value, bTime, sanitizeHtml(addr.value), vc, sc, pf, total, pm.value, notes ? sanitize(notes) : null
     );
 
-    res.status(201).json(queryOne('SELECT * FROM bookings WHERE id = ?', id));
+    res.status(201).json(await queryOne('SELECT * FROM bookings WHERE id = ?', id));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.put('/:id/status', authenticate, (req, res) => {
+router.put('/:id/status', authenticate, async (req, res) => {
   try {
     const statusCheck = validateEnum(req.body.status, VALID_STATUSES, 'Status');
     if (!statusCheck.valid) return res.status(400).json({ error: statusCheck.error });
 
-    const booking = queryOne('SELECT * FROM bookings WHERE id = ?', req.params.id);
+    const booking = await queryOne('SELECT * FROM bookings WHERE id = ?', req.params.id);
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
 
     if (req.user.role === 'worker') {
-      const worker = queryOne('SELECT id FROM workers WHERE user_id = ?', req.user.id);
+      const worker = await queryOne('SELECT id FROM workers WHERE user_id = ?', req.user.id);
       if (!worker || (booking.worker_id && booking.worker_id !== worker.id)) {
         return res.status(403).json({ error: 'Not authorized' });
       }
@@ -134,21 +134,21 @@ router.put('/:id/status', authenticate, (req, res) => {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
-    execute("UPDATE bookings SET status = ?, updated_at = datetime('now') WHERE id = ?", status, req.params.id);
+    await execute("UPDATE bookings SET status = ?, updated_at = datetime('now') WHERE id = ?", status, req.params.id);
 
     if (status === 'confirmed' && req.user.role === 'worker' && !booking.worker_id) {
-      const worker = queryOne('SELECT id FROM workers WHERE user_id = ?', req.user.id);
-      if (worker) execute('UPDATE bookings SET worker_id = ? WHERE id = ?', worker.id, req.params.id);
+      const worker = await queryOne('SELECT id FROM workers WHERE user_id = ?', req.user.id);
+      if (worker) await execute('UPDATE bookings SET worker_id = ? WHERE id = ?', worker.id, req.params.id);
     }
 
     if (status === 'completed') {
-      const b = queryOne('SELECT * FROM bookings WHERE id = ?', req.params.id);
+      const b = await queryOne('SELECT * FROM bookings WHERE id = ?', req.params.id);
       if (b.worker_id) {
         const { v4: uuidv4 } = require('uuid');
         const eid = uuidv4();
-        execute('INSERT INTO earnings (id, worker_id, booking_id, amount, status) VALUES (?, ?, ?, ?, ?)',
+        await execute('INSERT INTO earnings (id, worker_id, booking_id, amount, status) VALUES (?, ?, ?, ?, ?)',
           eid, b.worker_id, req.params.id, b.visit_charge, 'pending');
-        execute('UPDATE workers SET earnings_total = earnings_total + ? WHERE id = ?', b.visit_charge, b.worker_id);
+        await execute('UPDATE workers SET earnings_total = earnings_total + ? WHERE id = ?', b.visit_charge, b.worker_id);
       }
     }
 
@@ -158,7 +158,7 @@ router.put('/:id/status', authenticate, (req, res) => {
   }
 });
 
-router.put('/:id/review', authenticate, (req, res) => {
+router.put('/:id/review', authenticate, async (req, res) => {
   try {
     const { comment } = req.body;
     const ratingCheck = validateRating(req.body.rating);
@@ -168,17 +168,17 @@ router.put('/:id/review', authenticate, (req, res) => {
       return res.status(400).json({ error: 'Comment too long (max 1000 characters)' });
     }
 
-    const booking = queryOne('SELECT * FROM bookings WHERE id = ?', req.params.id);
+    const booking = await queryOne('SELECT * FROM bookings WHERE id = ?', req.params.id);
     if (!booking || booking.customer_id !== req.user.id) {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
-    execute('INSERT INTO reviews (booking_id, customer_id, worker_id, rating, comment) VALUES (?, ?, ?, ?, ?)',
+    await execute('INSERT INTO reviews (booking_id, customer_id, worker_id, rating, comment) VALUES (?, ?, ?, ?, ?)',
       req.params.id, req.user.id, booking.worker_id, ratingCheck.value, comment ? sanitize(comment) : null);
 
     if (booking.worker_id) {
-      const stats = queryOne('SELECT AVG(rating) as avg, COUNT(*) as cnt FROM reviews WHERE worker_id = ?', booking.worker_id);
-      execute('UPDATE workers SET rating = ?, reviews_count = ? WHERE id = ?',
+      const stats = await queryOne('SELECT AVG(rating) as avg, COUNT(*) as cnt FROM reviews WHERE worker_id = ?', booking.worker_id);
+      await execute('UPDATE workers SET rating = ?, reviews_count = ? WHERE id = ?',
         Math.round(stats.avg * 10) / 10, stats.cnt, booking.worker_id);
     }
 
@@ -188,14 +188,14 @@ router.put('/:id/review', authenticate, (req, res) => {
   }
 });
 
-router.delete('/:id', authenticate, (req, res) => {
+router.delete('/:id', authenticate, async (req, res) => {
   try {
-    const booking = queryOne('SELECT * FROM bookings WHERE id = ?', req.params.id);
+    const booking = await queryOne('SELECT * FROM bookings WHERE id = ?', req.params.id);
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
     if (booking.customer_id !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Not authorized' });
     }
-    execute('DELETE FROM bookings WHERE id = ?', req.params.id);
+    await execute('DELETE FROM bookings WHERE id = ?', req.params.id);
     res.json({ message: 'Booking deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });

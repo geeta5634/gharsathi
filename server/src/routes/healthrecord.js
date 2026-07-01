@@ -6,16 +6,16 @@ const { sanitize } = require('../middleware/validate');
 
 const router = express.Router();
 
-router.get('/', authenticate, (req, res) => {
+router.get('/', authenticate, async (req, res) => {
   try {
-    const assets = query('SELECT * FROM home_assets WHERE user_id = ? ORDER BY next_service_date ASC', req.user.id);
+    const assets = await query('SELECT * FROM home_assets WHERE user_id = ? ORDER BY next_service_date ASC', req.user.id);
     res.json(assets);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.post('/', authenticate, (req, res) => {
+router.post('/', authenticate, async (req, res) => {
   try {
     const { name, category, last_service_date, next_service_date, notes } = req.body;
 
@@ -27,26 +27,26 @@ router.post('/', authenticate, (req, res) => {
     }
 
     const id = uuidv4();
-    execute(
+    await execute(
       'INSERT INTO home_assets (id, user_id, name, category, last_service_date, next_service_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
       id, req.user.id, name.trim(), category, last_service_date || null, next_service_date || null, notes || null
     );
 
-    const asset = queryOne('SELECT * FROM home_assets WHERE id = ?', id);
+    const asset = await queryOne('SELECT * FROM home_assets WHERE id = ?', id);
     res.status(201).json(asset);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.put('/:id', authenticate, (req, res) => {
+router.put('/:id', authenticate, async (req, res) => {
   try {
-    const asset = queryOne('SELECT * FROM home_assets WHERE id = ? AND user_id = ?', req.params.id, req.user.id);
+    const asset = await queryOne('SELECT * FROM home_assets WHERE id = ? AND user_id = ?', req.params.id, req.user.id);
     if (!asset) return res.status(404).json({ error: 'Asset not found' });
 
     const { name, category, last_service_date, next_service_date, notes } = req.body;
 
-    execute(
+    await execute(
       "UPDATE home_assets SET name = ?, category = ?, last_service_date = ?, next_service_date = ?, notes = ?, updated_at = datetime('now') WHERE id = ?",
       name || asset.name,
       category || asset.category,
@@ -56,18 +56,18 @@ router.put('/:id', authenticate, (req, res) => {
       req.params.id
     );
 
-    const updated = queryOne('SELECT * FROM home_assets WHERE id = ?', req.params.id);
+    const updated = await queryOne('SELECT * FROM home_assets WHERE id = ?', req.params.id);
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.delete('/:id', authenticate, (req, res) => {
+router.delete('/:id', authenticate, async (req, res) => {
   try {
-    const asset = queryOne('SELECT * FROM home_assets WHERE id = ? AND user_id = ?', req.params.id, req.user.id);
+    const asset = await queryOne('SELECT * FROM home_assets WHERE id = ? AND user_id = ?', req.params.id, req.user.id);
     if (!asset) return res.status(404).json({ error: 'Asset not found' });
-    execute('DELETE FROM home_assets WHERE id = ?', req.params.id);
+    await execute('DELETE FROM home_assets WHERE id = ?', req.params.id);
     res.json({ message: 'Asset deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });

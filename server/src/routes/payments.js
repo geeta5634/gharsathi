@@ -51,8 +51,7 @@ function generateInvoiceHtml(booking, payment, receiptNo) {
   `;
 }
 
-// ─── Initiate Payment ───
-router.post('/initiate', authenticate, (req, res) => {
+router.post('/initiate', authenticate, async (req, res) => {
   try {
     const { booking_id, method } = req.body;
     if (!booking_id) return res.status(400).json({ error: 'Booking ID is required' });
@@ -60,7 +59,7 @@ router.post('/initiate', authenticate, (req, res) => {
     const pm = method ? validateEnum(method, VALID_PAYMENT_METHODS, 'Payment method') : { valid: true, value: 'online' };
     if (!pm.valid) return res.status(400).json({ error: pm.error });
 
-    const booking = queryOne(
+    const booking = await queryOne(
       `SELECT b.*, s.name as service_name, u.name as worker_name FROM bookings b 
        JOIN services s ON b.service_id = s.id 
        LEFT JOIN workers w ON b.worker_id = w.id 
@@ -72,16 +71,15 @@ router.post('/initiate', authenticate, (req, res) => {
     if (booking.payment_status === 'paid') return res.status(400).json({ error: 'Already paid' });
 
     if (pm.value === 'cash') {
-      execute("UPDATE bookings SET payment_method = 'cash', payment_status = 'pending' WHERE id = ?", booking_id);
+      await execute("UPDATE bookings SET payment_method = 'cash', payment_status = 'pending' WHERE id = ?", booking_id);
       return res.json({ message: 'Cash on service selected', booking_id, method: 'cash', status: 'pending' });
     }
 
-    // Simulated online payment
     const paymentId = 'PAY-' + uuidv4().slice(0, 8).toUpperCase();
     const transactionId = 'TXN' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 6).toUpperCase();
 
-    execute("UPDATE bookings SET payment_method = 'online', payment_status = 'pending' WHERE id = ?", booking_id);
-    execute(
+    await execute("UPDATE bookings SET payment_method = 'online', payment_status = 'pending' WHERE id = ?", booking_id);
+    await execute(
       'INSERT INTO payments (id, booking_id, customer_id, amount, method, transaction_id, gateway, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       paymentId, booking_id, req.user.id, booking.total_amount, 'online', transactionId, 'simulated', 'pending'
     );
@@ -101,13 +99,12 @@ router.post('/initiate', authenticate, (req, res) => {
   }
 });
 
-// ─── Verify / Complete Payment (simulated success) ───
-router.post('/verify', authenticate, (req, res) => {
+router.post('/verify', authenticate, async (req, res) => {
   try {
     const { booking_id, payment_id } = req.body;
     if (!booking_id) return res.status(400).json({ error: 'Booking ID is required' });
 
-    const booking = queryOne(
+    const booking = await queryOne(
       `SELECT b.*, s.name as service_name, u.name as worker_name FROM bookings b 
        JOIN services s ON b.service_id = s.id 
        LEFT JOIN workers w ON b.worker_id = w.id 
@@ -119,38 +116,36 @@ router.post('/verify', authenticate, (req, res) => {
 
     let payment;
     if (payment_id) {
-      payment = queryOne('SELECT * FROM payments WHERE id = ? AND booking_id = ?', payment_id, booking_id);
+      payment = await queryOne('SELECT * FROM payments WHERE id = ? AND booking_id = ?', payment_id, booking_id);
     } else {
-      payment = queryOne("SELECT * FROM payments WHERE booking_id = ? AND status = 'pending' ORDER BY created_at DESC LIMIT 1", booking_id);
+      payment = await queryOne("SELECT * FROM payments WHERE booking_id = ? AND status = 'pending' ORDER BY created_at DESC LIMIT 1", booking_id);
     }
 
     if (!payment) {
-      // Create payment record if it doesn't exist yet
       const pId = 'PAY-' + uuidv4().slice(0, 8).toUpperCase();
       const txnId = 'TXN' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 6).toUpperCase();
-      execute(
+      await execute(
         'INSERT INTO payments (id, booking_id, customer_id, amount, method, transaction_id, gateway, status, paid_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
         pId, booking_id, req.user.id, booking.total_amount, booking.payment_method, txnId, 'simulated', 'success', new Date().toISOString()
       );
-      payment = queryOne('SELECT * FROM payments WHERE id = ?', pId);
+      payment = await queryOne('SELECT * FROM payments WHERE id = ?', pId);
     } else {
-      execute("UPDATE payments SET status = 'success', paid_at = ? WHERE id = ?", new Date().toISOString(), payment.id);
+      await execute("UPDATE payments SET status = 'success', paid_at = ? WHERE id = ?", new Date().toISOString(), payment.id);
       payment.status = 'success';
     }
 
-    execute("UPDATE bookings SET payment_status = 'paid', updated_at = datetime('now') WHERE id = ?", booking_id);
+    await execute("UPDATE bookings SET payment_status = 'paid', updated_at = datetime('now') WHERE id = ?", booking_id);
 
-    // Generate receipt
-    let receipt = queryOne('SELECT * FROM payment_receipts WHERE booking_id = ?', booking_id);
+    let receipt = await queryOne('SELECT * FROM payment_receipts WHERE booking_id = ?', booking_id);
     if (!receipt) {
       const receiptId = uuidv4();
       const receiptNo = generateReceiptNo();
       const invoiceHtml = generateInvoiceHtml(booking, payment, receiptNo);
-      execute(
+      await execute(
         'INSERT INTO payment_receipts (id, booking_id, payment_id, receipt_no, invoice_html) VALUES (?, ?, ?, ?, ?)',
         receiptId, booking_id, payment.id, receiptNo, invoiceHtml
       );
-      receipt = queryOne('SELECT * FROM payment_receipts WHERE id = ?', receiptId);
+      receipt = await queryOne('SELECT * FROM payment_receipts WHERE id = ?', receiptId);
     }
 
     res.json({
@@ -168,14 +163,13 @@ router.post('/verify', authenticate, (req, res) => {
   }
 });
 
-// ─── Get Payment Status ───
-router.get('/status/:bookingId', authenticate, (req, res) => {
+router.get('/status/:bookingId', authenticate, async (req, res) => {
   try {
-    const booking = queryOne('SELECT id, payment_method, payment_status, total_amount FROM bookings WHERE id = ?', req.params.bookingId);
+    const booking = await queryOne('SELECT id, payment_method, payment_status, total_amount FROM bookings WHERE id = ?', req.params.bookingId);
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
 
-    const payment = queryOne("SELECT * FROM payments WHERE booking_id = ? AND status = 'success' ORDER BY created_at DESC LIMIT 1", req.params.bookingId);
-    const receipt = queryOne('SELECT * FROM payment_receipts WHERE booking_id = ?', req.params.bookingId);
+    const payment = await queryOne("SELECT * FROM payments WHERE booking_id = ? AND status = 'success' ORDER BY created_at DESC LIMIT 1", req.params.bookingId);
+    const receipt = await queryOne('SELECT * FROM payment_receipts WHERE booking_id = ?', req.params.bookingId);
 
     res.json({ booking, payment, receipt: receipt || null });
   } catch (err) {
@@ -183,10 +177,9 @@ router.get('/status/:bookingId', authenticate, (req, res) => {
   }
 });
 
-// ─── Get Payment Receipt ───
-router.get('/receipt/:bookingId', authenticate, (req, res) => {
+router.get('/receipt/:bookingId', authenticate, async (req, res) => {
   try {
-    const receipt = queryOne('SELECT * FROM payment_receipts WHERE booking_id = ?', req.params.bookingId);
+    const receipt = await queryOne('SELECT * FROM payment_receipts WHERE booking_id = ?', req.params.bookingId);
     if (!receipt) return res.status(404).json({ error: 'Receipt not found' });
     res.json(receipt);
   } catch (err) {
@@ -194,10 +187,9 @@ router.get('/receipt/:bookingId', authenticate, (req, res) => {
   }
 });
 
-// ─── Payment History ───
-router.get('/history', authenticate, (req, res) => {
+router.get('/history', authenticate, async (req, res) => {
   try {
-    const payments = query(
+    const payments = await query(
       `SELECT p.*, b.booking_date, b.booking_time, s.name as service_name, u.name as worker_name,
               pr.receipt_no
        FROM payments p 

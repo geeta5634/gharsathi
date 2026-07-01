@@ -4,8 +4,8 @@ const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
 
-function calculateTrustScore(workerId) {
-  const stats = queryOne(
+async function calculateTrustScore(workerId) {
+  const stats = await queryOne(
     `SELECT
       COALESCE(AVG(r.rating), 0) as avg_rating,
       COUNT(CASE WHEN b.status = 'completed' THEN 1 END) as completed_count,
@@ -37,10 +37,10 @@ function calculateTrustScore(workerId) {
   return Math.max(0, Math.min(100, score));
 }
 
-router.get('/:workerId', (req, res) => {
+router.get('/:workerId', async (req, res) => {
   try {
-    const score = calculateTrustScore(req.params.workerId);
-    const worker = queryOne('SELECT trust_score, rating, reviews_count FROM workers WHERE id = ?', req.params.workerId);
+    const score = await calculateTrustScore(req.params.workerId);
+    const worker = await queryOne('SELECT trust_score, rating, reviews_count FROM workers WHERE id = ?', req.params.workerId);
     res.json({
       trustScore: score,
       storedTrustScore: worker?.trust_score || 0,
@@ -57,9 +57,9 @@ router.post('/recalculate-all', authenticate, async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Admin only' });
     }
-    const workers = query('SELECT id FROM workers');
+    const workers = await query('SELECT id FROM workers');
     for (const w of workers) {
-      const score = calculateTrustScore(w.id);
+      await calculateTrustScore(w.id);
     }
     res.json({ message: `Recalculated trust scores for ${workers.length} workers` });
   } catch (err) {

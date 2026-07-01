@@ -48,14 +48,14 @@ async function generateRefreshToken(user, req) {
   const raw = uuidv4() + '-' + user.id + '-' + Date.now();
   const refreshHash = hashToken(raw);
   const expiresAt = new Date(Date.now() + REFRESH_EXPIRY_DAYS * 86400000).toISOString();
-  execute(
+  await execute(
     'INSERT INTO sessions (id, user_id, refresh_hash, user_agent, ip, expires_at) VALUES (?, ?, ?, ?, ?, ?)',
     id, user.id, refreshHash, req?.headers?.['user-agent'] || '', req?.ip || '', expiresAt
   );
   return { id: raw, sessionId: id };
 }
 
-function authenticate(req, res, next) {
+async function authenticate(req, res, next) {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'No token provided' });
@@ -70,7 +70,7 @@ function authenticate(req, res, next) {
     if (decoded.type !== 'access') {
       return res.status(401).json({ error: 'Invalid token type' });
     }
-    const user = queryOne('SELECT id, name, phone, role, email, location, avatar FROM users WHERE id = ?', decoded.id);
+    const user = await queryOne('SELECT id, name, phone, role, email, location, avatar FROM users WHERE id = ?', decoded.id);
     if (!user) return res.status(401).json({ error: 'User not found' });
     req.user = user;
     next();
@@ -82,26 +82,26 @@ function authenticate(req, res, next) {
 
 async function verifyRefreshToken(raw) {
   const hash = hashToken(raw);
-  const session = queryOne('SELECT * FROM sessions WHERE refresh_hash = ? AND revoked = 0', hash);
+  const session = await queryOne('SELECT * FROM sessions WHERE refresh_hash = ? AND revoked = 0', hash);
   if (!session) return null;
   if (new Date(session.expires_at) < new Date()) {
-    execute('DELETE FROM sessions WHERE id = ?', session.id);
+    await execute('DELETE FROM sessions WHERE id = ?', session.id);
     return null;
   }
-  const user = queryOne('SELECT id, name, phone, role, email, location, avatar FROM users WHERE id = ?', session.user_id);
+  const user = await queryOne('SELECT id, name, phone, role, email, location, avatar FROM users WHERE id = ?', session.user_id);
   if (!user) return null;
   return { user, session };
 }
 
-function revokeSession(sessionId) {
-  execute('UPDATE sessions SET revoked = 1 WHERE id = ?', sessionId);
+async function revokeSession(sessionId) {
+  await execute('UPDATE sessions SET revoked = 1 WHERE id = ?', sessionId);
 }
 
-function revokeAllUserTokens(userId, exceptSessionId) {
+async function revokeAllUserTokens(userId, exceptSessionId) {
   if (exceptSessionId) {
-    execute("UPDATE sessions SET revoked = 1 WHERE user_id = ? AND id != ? AND revoked = 0", userId, exceptSessionId);
+    await execute("UPDATE sessions SET revoked = 1 WHERE user_id = ? AND id != ? AND revoked = 0", userId, exceptSessionId);
   } else {
-    execute("UPDATE sessions SET revoked = 1 WHERE user_id = ? AND revoked = 0", userId);
+    await execute("UPDATE sessions SET revoked = 1 WHERE user_id = ? AND revoked = 0", userId);
   }
 }
 

@@ -39,7 +39,7 @@ router.post('/', async (req, res) => {
       }
     }
 
-    const allServices = query('SELECT * FROM services');
+    const allServices = await query('SELECT * FROM services');
     const confidence = maxScore > 0 ? Math.min(100, Math.round((maxScore / text.length) * 100)) : 0;
 
     if (!matched || confidence < 20) {

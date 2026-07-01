@@ -6,60 +6,56 @@ const router = express.Router();
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-// ─── Worker Availability (recurring weekly) ───
-
-router.get('/worker/availability', authenticate, (req, res) => {
+router.get('/worker/availability', authenticate, async (req, res) => {
   try {
-    const worker = queryOne('SELECT id FROM workers WHERE user_id = ?', req.user.id);
+    const worker = await queryOne('SELECT id FROM workers WHERE user_id = ?', req.user.id);
     if (!worker) return res.status(404).json({ error: 'Worker profile not found' });
-    const slots = query('SELECT * FROM worker_availability WHERE worker_id = ? ORDER BY day_of_week, start_time', worker.id);
+    const slots = await query('SELECT * FROM worker_availability WHERE worker_id = ? ORDER BY day_of_week, start_time', worker.id);
     res.json(slots);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.put('/worker/availability', authenticate, (req, res) => {
+router.put('/worker/availability', authenticate, async (req, res) => {
   try {
-    const worker = queryOne('SELECT id FROM workers WHERE user_id = ?', req.user.id);
+    const worker = await queryOne('SELECT id FROM workers WHERE user_id = ?', req.user.id);
     if (!worker) return res.status(404).json({ error: 'Worker profile not found' });
     const { slots } = req.body;
     if (!Array.isArray(slots)) return res.status(400).json({ error: 'slots must be an array' });
-    execute('DELETE FROM worker_availability WHERE worker_id = ?', worker.id);
+    await execute('DELETE FROM worker_availability WHERE worker_id = ?', worker.id);
     for (const slot of slots) {
       const day = parseInt(slot.day_of_week);
       if (day < 0 || day > 6 || !slot.start_time || !slot.end_time) continue;
       const dur = parseInt(slot.slot_duration) || 30;
-      execute('INSERT INTO worker_availability (worker_id, day_of_week, start_time, end_time, slot_duration) VALUES (?, ?, ?, ?, ?)',
+      await execute('INSERT INTO worker_availability (worker_id, day_of_week, start_time, end_time, slot_duration) VALUES (?, ?, ?, ?, ?)',
         worker.id, day, slot.start_time, slot.end_time, dur);
     }
-    const updated = query('SELECT * FROM worker_availability WHERE worker_id = ? ORDER BY day_of_week, start_time', worker.id);
+    const updated = await query('SELECT * FROM worker_availability WHERE worker_id = ? ORDER BY day_of_week, start_time', worker.id);
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// ─── Worker Blocked Dates ───
-
-router.get('/worker/blocked-dates', authenticate, (req, res) => {
+router.get('/worker/blocked-dates', authenticate, async (req, res) => {
   try {
-    const worker = queryOne('SELECT id FROM workers WHERE user_id = ?', req.user.id);
+    const worker = await queryOne('SELECT id FROM workers WHERE user_id = ?', req.user.id);
     if (!worker) return res.status(404).json({ error: 'Worker profile not found' });
-    const blocks = query("SELECT * FROM worker_blocked_dates WHERE worker_id = ? AND block_date >= date('now') ORDER BY block_date, start_time", worker.id);
+    const blocks = await query("SELECT * FROM worker_blocked_dates WHERE worker_id = ? AND block_date >= date('now') ORDER BY block_date, start_time", worker.id);
     res.json(blocks);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.post('/worker/blocked-dates', authenticate, (req, res) => {
+router.post('/worker/blocked-dates', authenticate, async (req, res) => {
   try {
-    const worker = queryOne('SELECT id FROM workers WHERE user_id = ?', req.user.id);
+    const worker = await queryOne('SELECT id FROM workers WHERE user_id = ?', req.user.id);
     if (!worker) return res.status(404).json({ error: 'Worker profile not found' });
     const { block_date, start_time, end_time, reason } = req.body;
     if (!block_date) return res.status(400).json({ error: 'block_date is required' });
-    execute('INSERT INTO worker_blocked_dates (worker_id, block_date, start_time, end_time, reason) VALUES (?, ?, ?, ?, ?)',
+    await execute('INSERT INTO worker_blocked_dates (worker_id, block_date, start_time, end_time, reason) VALUES (?, ?, ?, ?, ?)',
       worker.id, block_date, start_time || null, end_time || null, reason || null);
     res.status(201).json({ message: 'Date blocked' });
   } catch (err) {
@@ -67,38 +63,36 @@ router.post('/worker/blocked-dates', authenticate, (req, res) => {
   }
 });
 
-router.delete('/worker/blocked-dates/:id', authenticate, (req, res) => {
+router.delete('/worker/blocked-dates/:id', authenticate, async (req, res) => {
   try {
-    const worker = queryOne('SELECT id FROM workers WHERE user_id = ?', req.user.id);
+    const worker = await queryOne('SELECT id FROM workers WHERE user_id = ?', req.user.id);
     if (!worker) return res.status(404).json({ error: 'Worker profile not found' });
-    execute('DELETE FROM worker_blocked_dates WHERE id = ? AND worker_id = ?', req.params.id, worker.id);
+    await execute('DELETE FROM worker_blocked_dates WHERE id = ? AND worker_id = ?', req.params.id, worker.id);
     res.json({ message: 'Block removed' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// ─── Get Available Slots for a Worker on a Given Date ───
-
-router.get('/worker/:workerId/slots', (req, res) => {
+router.get('/worker/:workerId/slots', async (req, res) => {
   try {
     const { workerId } = req.params;
     const { date } = req.query;
     if (!date) return res.status(400).json({ error: 'date query parameter required (YYYY-MM-DD)' });
 
-    const worker = queryOne('SELECT * FROM workers WHERE id = ?', workerId);
+    const worker = await queryOne('SELECT * FROM workers WHERE id = ?', workerId);
     if (!worker) return res.status(404).json({ error: 'Worker not found' });
 
     const d = new Date(date + 'T00:00:00');
     if (isNaN(d.getTime())) return res.status(400).json({ error: 'Invalid date' });
     const dayOfWeek = d.getDay();
 
-    const availSlots = query('SELECT * FROM worker_availability WHERE worker_id = ? AND day_of_week = ? ORDER BY start_time', workerId, dayOfWeek);
+    const availSlots = await query('SELECT * FROM worker_availability WHERE worker_id = ? AND day_of_week = ? ORDER BY start_time', workerId, dayOfWeek);
     if (!availSlots.length) return res.json([]);
 
-    const blocks = query("SELECT * FROM worker_blocked_dates WHERE worker_id = ? AND block_date = ?", workerId, date);
+    const blocks = await query("SELECT * FROM worker_blocked_dates WHERE worker_id = ? AND block_date = ?", workerId, date);
 
-    const existingBookings = query(
+    const existingBookings = await query(
       "SELECT booking_time, status FROM bookings WHERE worker_id = ? AND booking_date = ? AND status NOT IN ('cancelled')",
       workerId, date
     );

@@ -9,7 +9,7 @@ const http = require('http');
 const bcrypt = require('bcryptjs');
 const passport = require('passport');
 const { v4: uuidv4 } = require('uuid');
-const { getDb, query, queryOne, execute, persistSync } = require('./database');
+const { getDb, initSchema, query, queryOne, execute } = require('./database');
 
 const authRoutes = require('./routes/auth');
 const oauthRoutes = require('./routes/oauth');
@@ -122,7 +122,8 @@ async function start() {
   });
 
   try {
-    await getDb();
+    getDb();
+    await initSchema();
     console.log('[Server] Database initialized successfully');
   } catch (err) {
     console.error('[Server] Database initialization FAILED:', err.message);
@@ -131,7 +132,7 @@ async function start() {
   }
 
   try {
-    const count = queryOne('SELECT COUNT(*) as c FROM services');
+    const count = await queryOne('SELECT COUNT(*) as c FROM services');
     if (!count || count.c === 0) {
       console.log('[Server] Database empty — seeding...');
       await seedIfEmpty();
@@ -159,33 +160,33 @@ async function start() {
   app.use('/api/availability', availabilityRoutes);
   app.use('/api/payments', paymentRoutes);
 
-  app.get('/api/stats', (req, res) => {
+  app.get('/api/stats', async (req, res) => {
     try {
-      const totalWorkers = queryOne('SELECT COUNT(*) as c FROM workers').c;
-      const totalCustomers = queryOne("SELECT COUNT(*) as c FROM users WHERE role = 'customer'").c;
-      const totalBookings = queryOne('SELECT COUNT(*) as c FROM bookings').c;
-      const totalEarnings = queryOne("SELECT COALESCE(SUM(total_amount), 0) as t FROM bookings WHERE status = 'completed'").t;
+      const totalWorkers = (await queryOne('SELECT COUNT(*) as c FROM workers')).c;
+      const totalCustomers = (await queryOne("SELECT COUNT(*) as c FROM users WHERE role = 'customer'")).c;
+      const totalBookings = (await queryOne('SELECT COUNT(*) as c FROM bookings')).c;
+      const totalEarnings = (await queryOne("SELECT COALESCE(SUM(total_amount), 0) as t FROM bookings WHERE status = 'completed'")).t;
 
       const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
-      const weeklyBookings = queryOne("SELECT COUNT(*) as c FROM bookings WHERE booking_date >= ?", weekAgo).c;
-      const pendingBookings = queryOne("SELECT COUNT(*) as c FROM bookings WHERE status = 'pending'").c;
-      const activeBookings = queryOne("SELECT COUNT(*) as c FROM bookings WHERE status IN ('confirmed','in-progress')").c;
-      const completedBookings = queryOne("SELECT COUNT(*) as c FROM bookings WHERE status = 'completed'").c;
-      const cancelledBookings = queryOne("SELECT COUNT(*) as c FROM bookings WHERE status = 'cancelled'").c;
-      const totalRevenue = queryOne("SELECT COALESCE(SUM(total_amount), 0) as t FROM bookings WHERE status IN ('completed','in-progress','confirmed')").t;
-      const avgRating = queryOne("SELECT COALESCE(AVG(rating), 0) as avg FROM reviews").avg;
-      const availableWorkers = queryOne("SELECT COUNT(*) as c FROM workers WHERE available = 1").c;
+      const weeklyBookings = (await queryOne("SELECT COUNT(*) as c FROM bookings WHERE booking_date >= ?", weekAgo)).c;
+      const pendingBookings = (await queryOne("SELECT COUNT(*) as c FROM bookings WHERE status = 'pending'")).c;
+      const activeBookings = (await queryOne("SELECT COUNT(*) as c FROM bookings WHERE status IN ('confirmed','in-progress')")).c;
+      const completedBookings = (await queryOne("SELECT COUNT(*) as c FROM bookings WHERE status = 'completed'")).c;
+      const cancelledBookings = (await queryOne("SELECT COUNT(*) as c FROM bookings WHERE status = 'cancelled'")).c;
+      const totalRevenue = (await queryOne("SELECT COALESCE(SUM(total_amount), 0) as t FROM bookings WHERE status IN ('completed','in-progress','confirmed')")).t;
+      const avgRating = (await queryOne("SELECT COALESCE(AVG(rating), 0) as avg FROM reviews")).avg;
+      const availableWorkers = (await queryOne("SELECT COUNT(*) as c FROM workers WHERE available = 1")).c;
 
-      const revenueByDay = query(
+      const revenueByDay = await query(
         "SELECT booking_date as date, COUNT(*) as bookings, COALESCE(SUM(total_amount), 0) as revenue FROM bookings WHERE booking_date >= ? GROUP BY booking_date ORDER BY booking_date",
         weekAgo
       );
 
-      const distribution = query(
+      const distribution = await query(
         'SELECT s.name, COUNT(*) as count FROM bookings b JOIN services s ON b.service_id = s.id GROUP BY s.id ORDER BY count DESC'
       );
 
-      const workerStats = query(
+      const workerStats = await query(
         'SELECT u.name, w.rating, w.reviews_count, w.available, w.visit_charge, w.earnings_total, w.experience FROM workers w JOIN users u ON w.user_id = u.id ORDER BY w.earnings_total DESC'
       );
 
@@ -243,7 +244,7 @@ async function seedIfEmpty() {
     ['s6', 'House Painter', 'paintbrush', 'purple', 'Wall painting, texture etc.'],
     ['s7', 'Cleaning', 'sparkles', 'teal', 'Home, office, deep cleaning etc.'],
   ];
-  for (const s of svc) execute('INSERT INTO services (id, name, icon, color, description) VALUES (?, ?, ?, ?, ?)', ...s);
+  for (const s of svc) await execute('INSERT INTO services (id, name, icon, color, description) VALUES (?, ?, ?, ?, ?)', ...s);
 
   const pwd = await bcrypt.hash(SEED_PASSWORD, 10);
   const users = [
@@ -255,15 +256,15 @@ async function seedIfEmpty() {
     ['u6', 'Admin', '9876543200', pwd, 'admin'],
   ];
   for (const u of users) {
-    execute('INSERT INTO users (id, name, phone, password, role, location, avatar) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    await execute('INSERT INTO users (id, name, phone, password, role, location, avatar) VALUES (?, ?, ?, ?, ?, ?, ?)',
       u[0], u[1], u[2], u[3], u[4], 'Jodhpur, Rajasthan', `https://i.pravatar.cc/200?u=${u[0]}`);
   }
 
-  execute('INSERT INTO workers (id, user_id, service_id, experience, rating, reviews_count, visit_charge, about, trust_score) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+  await execute('INSERT INTO workers (id, user_id, service_id, experience, rating, reviews_count, visit_charge, about, trust_score) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
     'w1', 'u3', 's1', '8 Years', 4.8, 120, 299, 'I have 8 years of experience in plumbing work.', 98);
-  execute('INSERT INTO workers (id, user_id, service_id, experience, rating, reviews_count, visit_charge, about, trust_score) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+  await execute('INSERT INTO workers (id, user_id, service_id, experience, rating, reviews_count, visit_charge, about, trust_score) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
     'w2', 'u4', 's1', '6 Years', 4.6, 85, 299, 'Expert in pipe fitting and water tank installation.', 95);
-  execute('INSERT INTO workers (id, user_id, service_id, experience, rating, reviews_count, visit_charge, about, trust_score) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+  await execute('INSERT INTO workers (id, user_id, service_id, experience, rating, reviews_count, visit_charge, about, trust_score) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
     'w3', 'u5', 's1', '10 Years', 4.7, 95, 299, 'Senior plumber with expertise in all plumbing systems.', 97);
 
   const skills = [
@@ -271,23 +272,22 @@ async function seedIfEmpty() {
     ['w2', 'Pipe Fitting'], ['w2', 'Water Tank Installation'],
     ['w3', 'Pipe Fitting'], ['w3', 'Leakage Fixing'],
   ];
-  for (const sk of skills) execute('INSERT INTO worker_skills (worker_id, skill) VALUES (?, ?)', ...sk);
+  for (const sk of skills) await execute('INSERT INTO worker_skills (worker_id, skill) VALUES (?, ?)', ...sk);
 
-  execute('INSERT INTO bookings (id, customer_id, worker_id, service_id, status, booking_date, booking_time, address, visit_charge, service_charge, platform_fee, total_amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+  await execute('INSERT INTO bookings (id, customer_id, worker_id, service_id, status, booking_date, booking_time, address, visit_charge, service_charge, platform_fee, total_amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     'GSABC001', 'u1', 'w1', 's1', 'completed', '2024-05-25', '10:00 AM', 'Shastri Nagar, Jodhpur', 299, 500, 49, 848);
-  execute('INSERT INTO bookings (id, customer_id, worker_id, service_id, status, booking_date, booking_time, address, visit_charge, service_charge, platform_fee, total_amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+  await execute('INSERT INTO bookings (id, customer_id, worker_id, service_id, status, booking_date, booking_time, address, visit_charge, service_charge, platform_fee, total_amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     'GSABC002', 'u2', null, 's2', 'pending', '2024-05-28', '11:00 AM', 'Ratanada, Jodhpur', 299, 400, 49, 748);
 
   const eid = uuidv4();
-  execute('INSERT INTO earnings (id, worker_id, booking_id, amount, status) VALUES (?, ?, ?, ?, ?)', eid, 'w1', 'GSABC001', 299, 'paid');
-  execute('UPDATE workers SET earnings_total = earnings_total + ? WHERE id = ?', 299, 'w1');
+  await execute('INSERT INTO earnings (id, worker_id, booking_id, amount, status) VALUES (?, ?, ?, ?, ?)', eid, 'w1', 'GSABC001', 299, 'paid');
+  await execute('UPDATE workers SET earnings_total = earnings_total + ? WHERE id = ?', 299, 'w1');
 
-  execute('INSERT INTO reviews (booking_id, customer_id, worker_id, rating, comment) VALUES (?, ?, ?, ?, ?)',
+  await execute('INSERT INTO reviews (booking_id, customer_id, worker_id, rating, comment) VALUES (?, ?, ?, ?, ?)',
     'GSABC001', 'u1', 'w1', 5, 'Very professional and quick.');
-  execute('INSERT INTO reviews (booking_id, customer_id, worker_id, rating, comment) VALUES (?, ?, ?, ?, ?)',
+  await execute('INSERT INTO reviews (booking_id, customer_id, worker_id, rating, comment) VALUES (?, ?, ?, ?, ?)',
     'GSABC001', 'u1', 'w1', 4, 'Knowledgeable and polite.');
 
-  persistSync();
   console.log('Database seeded successfully!');
   console.log('--- Test Credentials ---');
   console.log(`Customer: 9876543210 / ${SEED_PASSWORD}`);

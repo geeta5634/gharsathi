@@ -32,7 +32,6 @@ async function createSession(user, req) {
   return { accessToken, refreshToken: refresh.id, sessionId: refresh.sessionId };
 }
 
-// ─── Send OTP (Phone) ───────────────────────────────
 router.post('/send-otp', async (req, res) => {
   try {
     const phoneCheck = validatePhone(req.body.phone);
@@ -59,7 +58,6 @@ router.post('/send-otp', async (req, res) => {
   }
 });
 
-// ─── Verify OTP (Phone) ─────────────────────────────
 router.post('/verify-otp', async (req, res) => {
   try {
     const { otp, name } = req.body;
@@ -72,7 +70,7 @@ router.post('/verify-otp', async (req, res) => {
     if (!result.valid) {
       return res.status(401).json({ error: result.error });
     }
-    let user = queryOne('SELECT * FROM users WHERE phone = ?', phoneCheck.value);
+    let user = await queryOne('SELECT * FROM users WHERE phone = ?', phoneCheck.value);
     let isNewUser = false;
     if (!user) {
       if (!name) return res.status(400).json({ error: 'Name is required for registration' });
@@ -82,11 +80,11 @@ router.post('/verify-otp', async (req, res) => {
       const id = uuidv4();
       const hashed = await bcrypt.hash(phoneCheck.value + Date.now(), 10);
       const avatar = `https://i.pravatar.cc/200?u=${id}`;
-      execute(
+      await execute(
         'INSERT INTO users (id, name, phone, password, role, avatar) VALUES (?, ?, ?, ?, ?, ?)',
         id, sanitizeHtml(nameCheck.value), phoneCheck.value, hashed, 'customer', avatar
       );
-      user = queryOne('SELECT * FROM users WHERE id = ?', id);
+      user = await queryOne('SELECT * FROM users WHERE id = ?', id);
     }
     clearLoginAttempts(phoneCheck.value);
     const session = await createSession(user, req);
@@ -96,7 +94,6 @@ router.post('/verify-otp', async (req, res) => {
   }
 });
 
-// ─── Register (Email/Password) ──────────────────────
 router.post('/register', async (req, res) => {
   try {
     const { password, role, email } = req.body;
@@ -117,17 +114,17 @@ router.post('/register', async (req, res) => {
     const emailCheck = validateEmail(email);
     if (!emailCheck.valid) return res.status(400).json({ error: emailCheck.error });
 
-    const existing = queryOne('SELECT id FROM users WHERE phone = ?', phoneCheck.value);
+    const existing = await queryOne('SELECT id FROM users WHERE phone = ?', phoneCheck.value);
     if (existing) return res.status(409).json({ error: 'Phone number already registered' });
 
     const id = uuidv4();
     const hashed = await bcrypt.hash(passwordCheck.value, 10);
     const avatar = `https://i.pravatar.cc/200?u=${id}`;
-    execute(
+    await execute(
       'INSERT INTO users (id, name, phone, email, password, role, avatar) VALUES (?, ?, ?, ?, ?, ?, ?)',
       id, sanitizeHtml(nameCheck.value), phoneCheck.value, emailCheck.value, hashed, role || 'customer', avatar
     );
-    const user = queryOne('SELECT id, name, phone, email, role, location, avatar FROM users WHERE id = ?', id);
+    const user = await queryOne('SELECT id, name, phone, email, role, location, avatar FROM users WHERE id = ?', id);
     const session = await createSession(user, req);
     res.status(201).json({ user, ...session });
   } catch (err) {
@@ -135,7 +132,6 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// ─── Login (Phone/Password) ─────────────────────────
 router.post('/login', async (req, res) => {
   try {
     const { password } = req.body;
@@ -147,7 +143,7 @@ router.post('/login', async (req, res) => {
     if (lockout) {
       return res.status(429).json({ error: `Too many failed attempts. Try again in ${lockout} minute(s).` });
     }
-    const user = queryOne('SELECT * FROM users WHERE phone = ?', phoneCheck.value);
+    const user = await queryOne('SELECT * FROM users WHERE phone = ?', phoneCheck.value);
     if (!user) {
       recordFailedAttempt(phoneCheck.value);
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -165,14 +161,13 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// ─── Refresh Token ──────────────────────────────────
 router.post('/refresh', async (req, res) => {
   try {
     const { refreshToken } = req.body;
     if (!refreshToken) return res.status(400).json({ error: 'Refresh token is required' });
     const result = await verifyRefreshToken(refreshToken);
     if (!result) return res.status(401).json({ error: 'Invalid or expired refresh token' });
-    revokeSession(result.session.id);
+    await revokeSession(result.session.id);
     const session = await createSession(result.user, req);
     res.json(session);
   } catch (err) {
@@ -180,16 +175,15 @@ router.post('/refresh', async (req, res) => {
   }
 });
 
-// ─── Logout ─────────────────────────────────────────
 router.post('/logout', authenticate, async (req, res) => {
   try {
     const { refreshToken, allDevices } = req.body;
     if (refreshToken) {
       const result = await verifyRefreshToken(refreshToken);
-      if (result) revokeSession(result.session.id);
+      if (result) await revokeSession(result.session.id);
     }
     if (allDevices) {
-      revokeAllUserTokens(req.user.id, null);
+      await revokeAllUserTokens(req.user.id, null);
     }
     res.json({ message: 'Logged out successfully' });
   } catch (err) {
@@ -197,17 +191,15 @@ router.post('/logout', authenticate, async (req, res) => {
   }
 });
 
-// ─── Logout All Devices ─────────────────────────────
 router.post('/logout-all', authenticate, async (req, res) => {
   try {
-    revokeAllUserTokens(req.user.id, null);
+    await revokeAllUserTokens(req.user.id, null);
     res.json({ message: 'Logged out from all devices' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// ─── Change Password ────────────────────────────────
 router.post('/change-password', authenticate, async (req, res) => {
   try {
     const { currentPassword } = req.body;
@@ -216,13 +208,13 @@ router.post('/change-password', authenticate, async (req, res) => {
     const passwordCheck = validatePassword(req.body.newPassword);
     if (!passwordCheck.valid) return res.status(400).json({ error: passwordCheck.error });
 
-    const user = queryOne('SELECT * FROM users WHERE id = ?', req.user.id);
+    const user = await queryOne('SELECT * FROM users WHERE id = ?', req.user.id);
     const valid = await bcrypt.compare(currentPassword, user.password);
     if (!valid) return res.status(401).json({ error: 'Current password is incorrect' });
 
     const hashed = await bcrypt.hash(passwordCheck.value, 10);
-    execute("UPDATE users SET password = ?, updated_at = datetime('now') WHERE id = ?", hashed, req.user.id);
-    revokeAllUserTokens(req.user.id, null);
+    await execute("UPDATE users SET password = ?, updated_at = datetime('now') WHERE id = ?", hashed, req.user.id);
+    await revokeAllUserTokens(req.user.id, null);
     const session = await createSession(req.user, req);
     res.json({ message: 'Password changed successfully. Please login again on other devices.', ...session });
   } catch (err) {
@@ -230,13 +222,12 @@ router.post('/change-password', authenticate, async (req, res) => {
   }
 });
 
-// ─── Forgot Password (Send OTP) ─────────────────────
 router.post('/forgot-password', async (req, res) => {
   try {
     const phoneCheck = validatePhone(req.body.phone);
     if (!phoneCheck.valid) return res.status(400).json({ error: phoneCheck.error });
 
-    const user = queryOne('SELECT id FROM users WHERE phone = ?', phoneCheck.value);
+    const user = await queryOne('SELECT id FROM users WHERE phone = ?', phoneCheck.value);
     if (!user) return res.status(404).json({ error: 'No account found with this phone number' });
 
     const lockout = checkLoginLockout(phoneCheck.value);
@@ -259,7 +250,6 @@ router.post('/forgot-password', async (req, res) => {
   }
 });
 
-// ─── Reset Password (Verify OTP + New Password) ─────
 router.post('/reset-password', async (req, res) => {
   try {
     const { otp } = req.body;
@@ -273,12 +263,12 @@ router.post('/reset-password', async (req, res) => {
     const result = verifyOtp('reset:' + phoneCheck.value, otp.trim());
     if (!result.valid) return res.status(401).json({ error: result.error });
 
-    const user = queryOne('SELECT * FROM users WHERE phone = ?', phoneCheck.value);
+    const user = await queryOne('SELECT * FROM users WHERE phone = ?', phoneCheck.value);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const hashed = await bcrypt.hash(passwordCheck.value, 10);
-    execute("UPDATE users SET password = ?, updated_at = datetime('now') WHERE id = ?", hashed, user.id);
-    revokeAllUserTokens(user.id, null);
+    await execute("UPDATE users SET password = ?, updated_at = datetime('now') WHERE id = ?", hashed, user.id);
+    await revokeAllUserTokens(user.id, null);
     const session = await createSession(user, req);
     res.json({ message: 'Password reset successfully', ...session });
   } catch (err) {
@@ -286,10 +276,9 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
-// ─── Sessions (List active sessions) ────────────────
-router.get('/sessions', authenticate, (req, res) => {
+router.get('/sessions', authenticate, async (req, res) => {
   try {
-    const sessions = query(
+    const sessions = await query(
       "SELECT id, user_agent, ip, created_at, expires_at FROM sessions WHERE user_id = ? AND revoked = 0 AND expires_at > datetime('now') ORDER BY created_at DESC",
       req.user.id
     );
@@ -299,24 +288,22 @@ router.get('/sessions', authenticate, (req, res) => {
   }
 });
 
-// ─── Revoke Session ─────────────────────────────────
-router.delete('/sessions/:sessionId', authenticate, (req, res) => {
+router.delete('/sessions/:sessionId', authenticate, async (req, res) => {
   try {
-    const session = queryOne('SELECT * FROM sessions WHERE id = ? AND user_id = ?', req.params.sessionId, req.user.id);
+    const session = await queryOne('SELECT * FROM sessions WHERE id = ? AND user_id = ?', req.params.sessionId, req.user.id);
     if (!session) return res.status(404).json({ error: 'Session not found' });
-    revokeSession(req.params.sessionId);
+    await revokeSession(req.params.sessionId);
     res.json({ message: 'Session revoked' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// ─── Get Me ─────────────────────────────────────────
-router.get('/me', authenticate, (req, res) => {
+router.get('/me', authenticate, async (req, res) => {
   try {
     const user = req.user;
     if (user.role === 'worker') {
-      const worker = queryOne(
+      const worker = await queryOne(
         'SELECT w.*, s.name as service_name, s.icon as service_icon FROM workers w JOIN services s ON w.service_id = s.id WHERE w.user_id = ?',
         user.id
       );
@@ -328,8 +315,7 @@ router.get('/me', authenticate, (req, res) => {
   }
 });
 
-// ─── Update Me ──────────────────────────────────────
-router.put('/me', authenticate, (req, res) => {
+router.put('/me', authenticate, async (req, res) => {
   try {
     const { name, email, location } = req.body;
     const updates = [];
@@ -352,8 +338,8 @@ router.put('/me', authenticate, (req, res) => {
     if (updates.length === 0) return res.status(400).json({ error: 'Nothing to update' });
     updates.push("updated_at = datetime('now')");
     values.push(req.user.id);
-    execute(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, ...values);
-    const user = queryOne('SELECT id, name, phone, email, role, location, avatar FROM users WHERE id = ?', req.user.id);
+    await execute(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, ...values);
+    const user = await queryOne('SELECT id, name, phone, email, role, location, avatar FROM users WHERE id = ?', req.user.id);
     res.json(user);
   } catch (err) {
     res.status(500).json({ error: err.message });

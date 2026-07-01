@@ -39,10 +39,10 @@ function setupSocket(httpServer) {
         const { bookingId, lat, lng } = data;
         if (!bookingId || lat === undefined || lng === undefined) return;
 
-        const worker = queryOne('SELECT id FROM workers WHERE user_id = ?', socket.userId);
+        const worker = await queryOne('SELECT id FROM workers WHERE user_id = ?', socket.userId);
         if (!worker) return;
 
-        execute('INSERT INTO location_updates (worker_id, lat, lng) VALUES (?, ?, ?)', worker.id, lat, lng);
+        await execute('INSERT INTO location_updates (worker_id, lat, lng) VALUES (?, ?, ?)', worker.id, lat, lng);
 
         io.to(`booking:${bookingId}`).emit('worker-location', {
           lat,

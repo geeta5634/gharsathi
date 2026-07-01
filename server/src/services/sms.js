@@ -10,8 +10,12 @@ const RAPID_API_KEY = process.env.RAPID_API_KEY || '';
 const RAPID_API_HOST = process.env.RAPID_API_HOST || '';
 const RAPID_API_URL = process.env.RAPID_API_URL || '';
 
+// StartMessaging – simplest Indian OTP provider, no DLT required
+const STARTMESSAGING_API_KEY = process.env.STARTMESSAGING_API_KEY || '';
+const STARTMESSAGING_BASE_URL = process.env.STARTMESSAGING_BASE_URL || 'https://api.startmessaging.com';
+
 const RATE_LIMIT_WINDOW = 60 * 1000;
-const MAX_PER_WINDOW = 5;
+const MAX_PER_WINDOW = process.env.SMS_PROVIDER === 'console' ? 9999 : 5;
 const smsRateLimit = new Map();
 
 function checkRateLimit(phone) {
@@ -46,6 +50,42 @@ async function sendSMS(phone, message) {
     return { success: false, error: 'Too many requests. Try again later.' };
   }
 
+  // ─── StartMessaging (recommended) ───
+  if (SMS_PROVIDER === 'startmessaging' && STARTMESSAGING_API_KEY) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+
+      const res = await fetch(`${STARTMESSAGING_BASE_URL}/v1/otp/send`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${STARTMESSAGING_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: phoneClean,
+          message,
+          expiry: 5,
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+      const data = await res.json();
+
+      if (res.ok) {
+        console.log(`[SMS] Sent to ${phoneClean} via StartMessaging`);
+        return { success: true, provider: 'startmessaging', msg_id: data.id || '' };
+      }
+      console.warn(`[SMS] StartMessaging failed: ${JSON.stringify(data)}`);
+      return { success: false, provider: 'startmessaging', error: data.error || data.message || 'StartMessaging error' };
+    } catch (err) {
+      console.warn(`[SMS] StartMessaging error: ${err.message}`);
+      return { success: false, provider: 'startmessaging', error: err.message };
+    }
+  }
+
+  // ─── Fast2SMS ───
   if (SMS_PROVIDER === 'fast2sms' && FAST2SMS_API_KEY) {
     try {
       const controller = new AbortController();
@@ -83,6 +123,7 @@ async function sendSMS(phone, message) {
     }
   }
 
+  // ─── RapidAPI ───
   if (SMS_PROVIDER === 'rapidapi' && RAPID_API_KEY && RAPID_API_URL) {
     try {
       const controller = new AbortController();
@@ -121,6 +162,7 @@ async function sendSMS(phone, message) {
     }
   }
 
+  // ─── Console / Free Unlimited Mode ───
   console.log(`[SMS] ${phoneClean}: ${message}`);
   return { success: true, provider: 'console' };
 }
