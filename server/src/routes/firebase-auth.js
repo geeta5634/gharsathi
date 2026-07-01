@@ -65,10 +65,10 @@ router.post('/firebase', async (req, res) => {
     const session = await createSession(user, req);
     res.json({ user: sanitizeUser(user), ...session, isNew: false });
   } catch (err) {
-    if (err.code === 'auth/argument-error' || err.message?.includes('Firebase not initialized')) {
+    if (err.message?.includes('Firebase not initialized')) {
       return res.status(500).json({ error: 'Firebase authentication not configured on server' });
     }
-    res.status(401).json({ error: 'Invalid Firebase token' });
+    res.status(401).json({ error: err.message || 'Invalid Firebase token' });
   }
 });
 
