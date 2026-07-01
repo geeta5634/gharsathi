@@ -10,7 +10,6 @@ services:
       - key: NODE_ENV
         value: production
       - key: TURSO_DATABASE_URL
-        sync: false
         value: libsql://gharsathi-geeta5634.aws-ap-south-1.turso.io
       - key: TURSO_AUTH_TOKEN
         sync: false
