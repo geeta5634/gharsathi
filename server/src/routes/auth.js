@@ -46,12 +46,16 @@ router.post('/send-otp', async (req, res) => {
     storeOtp('otp:' + phoneCheck.value, otp);
     const result = await sendOTP(phoneCheck.value, otp);
     const smsFailed = !result.success;
+    const isSelfHosted = (process.env.SMS_PROVIDER || 'console') === 'console';
     if (smsFailed) {
       console.warn(`[SMS] Failed: ${result.error}. Showing OTP on screen.`);
     }
+    if (isSelfHosted) {
+      console.log(`[SMS] Self-hosted mode — OTP for ${phoneCheck.value}: ${otp}`);
+    }
     res.json({
-      message: smsFailed ? 'OTP generated (SMS failed). Use the code shown below.' : 'OTP sent successfully',
-      ...(smsFailed ? { debug: otp } : {}),
+      message: smsFailed ? 'OTP generated (SMS failed). Use the code shown below.' : (isSelfHosted ? 'OTP generated (self-hosted). Use the code shown below.' : 'OTP sent successfully'),
+      ...((smsFailed || isSelfHosted) ? { debug: otp } : {}),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
