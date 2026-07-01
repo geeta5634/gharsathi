@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
     <style>
         body { font-family: 'Inter', sans-serif; background: #f3f4f6; }
         .mobile-container { max-width: 480px; margin: 0 auto; background: white; min-height: 100vh; position: relative; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
@@ -52,32 +54,33 @@
                 <p class="text-gray-400 text-xs mt-4">Customer App</p>
             </div>
             <div id="login-form" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Mobile Number</label>
-                    <input type="tel" id="login-phone" placeholder="Enter your mobile number" class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" maxlength="10" value="9876543210">
-                </div>
-                <div id="otp-section" class="hidden space-y-4">
+                <div id="recaptcha-container"></div>
+                <div id="phone-auth">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Enter OTP</label>
-                        <div class="flex justify-center gap-2" id="otp-inputs">
-                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="0" autofocus>
-                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="1">
-                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="2">
-                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="3">
-                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="4">
-                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="5">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Mobile Number</label>
+                        <div class="flex space-x-2">
+                            <span class="flex items-center bg-gray-100 border border-gray-300 rounded-xl px-3 py-3 text-gray-600 text-sm font-medium">+91</span>
+                            <input type="tel" id="login-phone" placeholder="Enter mobile number" class="flex-1 border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" maxlength="10">
                         </div>
-                        <p class="text-xs text-gray-400 mt-2 text-center" id="otp-timer"></p>
-                        <p id="otp-display" class="text-center text-lg font-bold text-blue-600 mt-2 hidden"></p>
                     </div>
-                    <div id="name-section" class="hidden">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Your Name (New User)</label>
-                        <input type="text" id="login-name" placeholder="Enter your name" class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <div id="otp-section" class="hidden space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Enter OTP</label>
+                            <div class="flex justify-center gap-2" id="otp-inputs">
+                                <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="0" autofocus>
+                                <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="1">
+                                <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="2">
+                                <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="3">
+                                <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="4">
+                                <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="5">
+                            </div>
+                            <p class="text-xs text-gray-400 mt-2 text-center" id="otp-timer"></p>
+                        </div>
+                        <button onclick="verifyFirebaseOtp()" id="verify-otp-btn" class="w-full bg-green-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-green-200 active:scale-95 transition">Verify & Login</button>
                     </div>
-                    <button onclick="verifyOtp()" id="verify-otp-btn" class="w-full bg-green-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-green-200 active:scale-95 transition">Verify & Login</button>
+                    <button onclick="sendFirebaseOtp()" id="send-otp-btn" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition">Send OTP</button>
                 </div>
-                <button onclick="sendOtp()" id="send-otp-btn" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition">Send OTP</button>
-                <div class="relative my-6">
+                <div class="relative my-4">
                     <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-gray-300"></div></div>
                     <div class="relative flex justify-center text-sm"><span class="bg-white px-4 text-gray-500">or continue with</span></div>
                 </div>
@@ -91,6 +94,7 @@
                         <span class="text-sm font-medium text-gray-700">Facebook</span>
                     </button>
                 </div>
+                <p class="text-center text-xs text-gray-400">Powered by Firebase Authentication</p>
             </div>
             <p class="text-center mt-8 text-sm text-gray-500">New here? <a href="index.html" class="text-blue-600 font-semibold">Learn More</a></p>
         </div>
@@ -507,8 +511,6 @@
         let currentBooking = null;
         let workersCache = [];
         let servicesCache = [];
-        let otpTimer = null;
-        let otpCooldown = false;
         let socket = null;
 
         function oauthLogin(provider) {
@@ -1086,96 +1088,104 @@
             showToast('info', 'Chat feature coming soon!');
         }
 
-        async function sendOtp() {
-            const phone = document.getElementById('login-phone').value.trim();
-            if (!phone || phone.length < 10) { showToast('error', 'Enter a valid 10-digit mobile number'); return; }
+        let firebaseApp = null;
+        let firebaseAuth = null;
+        let confirmationResult = null;
+        let otpTimer = null;
+        let firebaseConfig = null;
 
-            const btn = document.getElementById('send-otp-btn');
-            btn.innerHTML = '<span class="loading-spinner"></span> Sending...';
-            btn.disabled = true;
-
-            const data = await apiFetch('/auth/send-otp', {
-                method: 'POST',
-                body: JSON.stringify({ phone })
-            });
-            if (!data || !data.message) {
-                btn.innerHTML = 'Send OTP';
-                btn.disabled = false;
-                return;
+        async function initFirebase() {
+            if (firebaseApp) return;
+            if (!firebaseConfig) {
+                firebaseConfig = await apiFetch('/auth/firebase-config');
+                if (!firebaseConfig || !firebaseConfig.apiKey) {
+                    console.warn('[Firebase] Not configured — set FIREBASE_* env vars on server');
+                    return;
+                }
             }
-            if (data.debug) {
-                document.getElementById('otp-display').textContent = 'Your OTP: ' + data.debug;
-                document.getElementById('otp-display').style.display = 'block';
+            firebaseApp = firebase.initializeApp(firebaseConfig);
+            firebaseAuth = firebase.auth();
+            firebaseAuth.useDeviceLanguage();
+            if (!window.recaptchaVerifier) {
+                window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+                    size: 'invisible',
+                    callback: () => {},
+                });
             }
-
-            document.getElementById('otp-section').classList.remove('hidden');
-            document.getElementById('send-otp-btn').textContent = 'Resend OTP';
-            showToast('success', 'OTP sent!');
-            otpCooldown = true;
-            let sec = 30;
-            const t = document.getElementById('otp-timer');
-            if (otpTimer) clearInterval(otpTimer);
-            otpTimer = setInterval(() => {
-                sec--;
-                t.textContent = sec > 0 ? `Resend in ${sec}s` : '';
-                if (sec <= 0) { clearInterval(otpTimer); btn.disabled = false; otpCooldown = false; }
-            }, 1000);
-            document.querySelector('.otp-input').focus();
-            setupOtpInputs();
         }
 
         function setupOtpInputs() {
             const inputs = document.querySelectorAll('.otp-input');
-            inputs.forEach((input, idx) => {
-                input.addEventListener('input', function() {
-                    if (this.value && idx < inputs.length - 1) inputs[idx + 1].focus();
-                    const allFilled = Array.from(inputs).every(i => i.value);
-                    if (allFilled) setTimeout(verifyOtp, 200);
-                });
-                input.addEventListener('keydown', function(e) {
-                    if (e.key === 'Backspace' && !this.value && idx > 0) inputs[idx - 1].focus();
-                    if (e.key === 'Enter') verifyOtp();
-                });
+            inputs.forEach((input, idx, arr) => {
+                input.oninput = function() {
+                    if (this.value && idx < arr.length - 1) arr[idx + 1].focus();
+                    const allFilled = Array.from(arr).every(i => i.value);
+                    if (allFilled) setTimeout(verifyFirebaseOtp, 200);
+                };
+                input.onkeydown = function(e) {
+                    if (e.key === 'Backspace' && !this.value && idx > 0) arr[idx - 1].focus();
+                    if (e.key === 'Enter') verifyFirebaseOtp();
+                };
             });
         }
 
-        async function verifyOtp() {
+        async function sendFirebaseOtp() {
+            initFirebase();
+            if (!firebaseAuth) { showToast('error', 'Firebase not configured. Set FIREBASE_* env vars.'); return; }
+            const phone = document.getElementById('login-phone').value.trim();
+            if (!phone || phone.length < 10) { showToast('error', 'Enter a valid 10-digit mobile number'); return; }
+            const btn = document.getElementById('send-otp-btn');
+            btn.innerHTML = '<span class="loading-spinner"></span> Sending...';
+            btn.disabled = true;
+            try {
+                confirmationResult = await firebaseAuth.signInWithPhoneNumber('+91' + phone, window.recaptchaVerifier);
+                document.getElementById('otp-section').classList.remove('hidden');
+                document.getElementById('send-otp-btn').textContent = 'Resend OTP';
+                showToast('success', 'OTP sent via Firebase!');
+                let sec = 30;
+                const t = document.getElementById('otp-timer');
+                if (otpTimer) clearInterval(otpTimer);
+                otpTimer = setInterval(() => {
+                    sec--;
+                    t.textContent = sec > 0 ? `Resend in ${sec}s` : '';
+                    if (sec <= 0) { clearInterval(otpTimer); btn.disabled = false; }
+                }, 1000);
+                document.querySelector('.otp-input').focus();
+                setupOtpInputs();
+            } catch (err) {
+                showToast('error', err.message || 'Failed to send OTP');
+                btn.innerHTML = 'Send OTP';
+                btn.disabled = false;
+            }
+        }
+
+        async function verifyFirebaseOtp() {
+            if (!confirmationResult) { showToast('error', 'Please request OTP first'); return; }
             const otp = Array.from(document.querySelectorAll('.otp-input')).map(i => i.value).join('');
-            const name = document.getElementById('login-name').value.trim();
-
-            if (otp.length !== 6) { showToast('error', 'Enter complete 6-digit OTP'); return; }
-
+            if (otp.length !== 6) { showToast('error', 'Enter complete OTP'); return; }
             const btn = document.getElementById('verify-otp-btn');
             btn.innerHTML = '<span class="loading-spinner"></span> Verifying...';
             btn.disabled = true;
-
             try {
-                const phone = document.getElementById('login-phone').value.trim();
-                const body = { phone, otp };
-                if (name) body.name = name;
-                const data = await apiFetch('/auth/verify-otp', {
+                const result = await confirmationResult.confirm(otp);
+                const idToken = await result.user.getIdToken();
+                const data = await apiFetch('/auth/firebase', {
                     method: 'POST',
-                    body: JSON.stringify(body)
+                    body: JSON.stringify({ idToken })
                 });
-
                 if (data && data.accessToken) {
                     token = data.accessToken;
                     currentUser = data.user;
                     localStorage.setItem('gs_token', token);
                     localStorage.setItem('gs_refresh', data.refreshToken || '');
                     localStorage.setItem('gs_user', JSON.stringify(data.user));
-                    if (data.isNew && !name) {
-                        document.getElementById('name-section').classList.remove('hidden');
-                        document.getElementById('name-section').querySelector('input').focus();
-                        showToast('info', 'New user! Please enter your name.');
-                        return;
-                    }
                     onLoginSuccess();
+                } else {
+                    showToast('error', data?.error || 'Login failed');
                 }
-            } catch (e) {
-                showToast('error', e.message || 'Invalid OTP');
+            } catch (err) {
+                showToast('error', err.message || 'Invalid OTP');
             }
-
             btn.innerHTML = 'Verify & Login';
             btn.disabled = false;
         }
@@ -1214,7 +1224,9 @@
             document.getElementById('login').classList.add('active');
             document.getElementById('main-header').classList.add('hidden');
             document.getElementById('otp-section').classList.add('hidden');
-            document.getElementById('name-section').classList.add('hidden');
+            document.getElementById('send-otp-btn').innerHTML = 'Send OTP';
+            document.getElementById('send-otp-btn').disabled = false;
+            if (otpTimer) clearInterval(otpTimer);
             showToast('info', 'Logged out successfully');
         }
 

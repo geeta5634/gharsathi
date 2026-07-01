@@ -2,7 +2,6 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const { query, queryOne, execute } = require('../database');
-const { sendOTP } = require('../services/sms');
 const { sanitize, sanitizeHtml, validatePhone, validateEmail, validatePassword, validateName } = require('../middleware/validate');
 const {
   generateAccessToken,
@@ -11,9 +10,6 @@ const {
   verifyRefreshToken,
   revokeSession,
   revokeAllUserTokens,
-  generateOtp,
-  storeOtp,
-  verifyOtp,
   checkLoginLockout,
   recordFailedAttempt,
   clearLoginAttempts,
@@ -31,72 +27,6 @@ async function createSession(user, req) {
   const refresh = await generateRefreshToken(user, req);
   return { accessToken, refreshToken: refresh.id, sessionId: refresh.sessionId };
 }
-
-router.post('/send-otp', async (req, res) => {
-  try {
-    const phoneCheck = validatePhone(req.body.phone);
-    if (!phoneCheck.valid) {
-      return res.status(400).json({ error: phoneCheck.error });
-    }
-    const lockout = checkLoginLockout(phoneCheck.value);
-    if (lockout) {
-      return res.status(429).json({ error: `Too many attempts. Try again in ${lockout} minute(s).` });
-    }
-    const otp = generateOtp();
-    storeOtp('otp:' + phoneCheck.value, otp);
-    const result = await sendOTP(phoneCheck.value, otp);
-    const smsFailed = !result.success;
-    const isSelfHosted = (process.env.SMS_PROVIDER || 'console') === 'console';
-    if (smsFailed) {
-      console.warn(`[SMS] Failed: ${result.error}. Showing OTP on screen.`);
-    }
-    if (isSelfHosted) {
-      console.log(`[SMS] Self-hosted mode — OTP for ${phoneCheck.value}: ${otp}`);
-    }
-    res.json({
-      message: smsFailed ? 'OTP generated (SMS failed). Use the code shown below.' : (isSelfHosted ? 'OTP generated (self-hosted). Use the code shown below.' : 'OTP sent successfully'),
-      ...((smsFailed || isSelfHosted) ? { debug: otp } : {}),
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.post('/verify-otp', async (req, res) => {
-  try {
-    const { otp, name } = req.body;
-    const phoneCheck = validatePhone(req.body.phone);
-    if (!phoneCheck.valid) {
-      return res.status(400).json({ error: phoneCheck.error });
-    }
-    if (!otp || typeof otp !== 'string') return res.status(400).json({ error: 'OTP is required' });
-    const result = verifyOtp('otp:' + phoneCheck.value, otp.trim());
-    if (!result.valid) {
-      return res.status(401).json({ error: result.error });
-    }
-    let user = await queryOne('SELECT * FROM users WHERE phone = ?', phoneCheck.value);
-    let isNewUser = false;
-    if (!user) {
-      if (!name) return res.status(400).json({ error: 'Name is required for registration' });
-      const nameCheck = validateName(name);
-      if (!nameCheck.valid) return res.status(400).json({ error: nameCheck.error });
-      isNewUser = true;
-      const id = uuidv4();
-      const hashed = await bcrypt.hash(phoneCheck.value + Date.now(), 10);
-      const avatar = `https://i.pravatar.cc/200?u=${id}`;
-      await execute(
-        'INSERT INTO users (id, name, phone, password, role, avatar) VALUES (?, ?, ?, ?, ?, ?)',
-        id, sanitizeHtml(nameCheck.value), phoneCheck.value, hashed, 'customer', avatar
-      );
-      user = await queryOne('SELECT * FROM users WHERE id = ?', id);
-    }
-    clearLoginAttempts(phoneCheck.value);
-    const session = await createSession(user, req);
-    res.json({ user: sanitizeUser(user), ...session, isNew: isNewUser });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 router.post('/register', async (req, res) => {
   try {
@@ -128,7 +58,7 @@ router.post('/register', async (req, res) => {
       'INSERT INTO users (id, name, phone, email, password, role, avatar) VALUES (?, ?, ?, ?, ?, ?, ?)',
       id, sanitizeHtml(nameCheck.value), phoneCheck.value, emailCheck.value, hashed, role || 'customer', avatar
     );
-    const user = await queryOne('SELECT id, name, phone, email, role, location, avatar FROM users WHERE id = ?', id);
+    const user = await queryOne('SELECT id, name, phone, email, role, location, avatar, firebase_uid FROM users WHERE id = ?', id);
     const session = await createSession(user, req);
     res.status(201).json({ user, ...session });
   } catch (err) {
@@ -226,60 +156,6 @@ router.post('/change-password', authenticate, async (req, res) => {
   }
 });
 
-router.post('/forgot-password', async (req, res) => {
-  try {
-    const phoneCheck = validatePhone(req.body.phone);
-    if (!phoneCheck.valid) return res.status(400).json({ error: phoneCheck.error });
-
-    const user = await queryOne('SELECT id FROM users WHERE phone = ?', phoneCheck.value);
-    if (!user) return res.status(404).json({ error: 'No account found with this phone number' });
-
-    const lockout = checkLoginLockout(phoneCheck.value);
-    if (lockout) {
-      return res.status(429).json({ error: `Too many attempts. Try again in ${lockout} minute(s).` });
-    }
-    const otp = generateOtp();
-    storeOtp('reset:' + phoneCheck.value, otp);
-    const result = await sendOTP(phoneCheck.value, otp);
-    const smsFailed = !result.success;
-    if (smsFailed) {
-      console.warn(`[SMS] Failed: ${result.error}. Showing OTP on screen.`);
-    }
-    res.json({
-      message: smsFailed ? 'OTP generated (SMS failed). Use the code shown below.' : 'OTP sent successfully',
-      ...(smsFailed ? { debug: otp } : {}),
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.post('/reset-password', async (req, res) => {
-  try {
-    const { otp } = req.body;
-    const phoneCheck = validatePhone(req.body.phone);
-    if (!phoneCheck.valid) return res.status(400).json({ error: phoneCheck.error });
-    if (!otp) return res.status(400).json({ error: 'OTP is required' });
-
-    const passwordCheck = validatePassword(req.body.newPassword);
-    if (!passwordCheck.valid) return res.status(400).json({ error: passwordCheck.error });
-
-    const result = verifyOtp('reset:' + phoneCheck.value, otp.trim());
-    if (!result.valid) return res.status(401).json({ error: result.error });
-
-    const user = await queryOne('SELECT * FROM users WHERE phone = ?', phoneCheck.value);
-    if (!user) return res.status(404).json({ error: 'User not found' });
-
-    const hashed = await bcrypt.hash(passwordCheck.value, 10);
-    await execute("UPDATE users SET password = ?, updated_at = datetime('now') WHERE id = ?", hashed, user.id);
-    await revokeAllUserTokens(user.id, null);
-    const session = await createSession(user, req);
-    res.json({ message: 'Password reset successfully', ...session });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 router.get('/sessions', authenticate, async (req, res) => {
   try {
     const sessions = await query(
@@ -343,7 +219,7 @@ router.put('/me', authenticate, async (req, res) => {
     updates.push("updated_at = datetime('now')");
     values.push(req.user.id);
     await execute(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, ...values);
-    const user = await queryOne('SELECT id, name, phone, email, role, location, avatar FROM users WHERE id = ?', req.user.id);
+    const user = await queryOne('SELECT id, name, phone, email, role, location, avatar, firebase_uid FROM users WHERE id = ?', req.user.id);
     res.json(user);
   } catch (err) {
     res.status(500).json({ error: err.message });

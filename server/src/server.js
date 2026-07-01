@@ -13,6 +13,7 @@ const { getDb, initSchema, query, queryOne, execute } = require('./database');
 
 const authRoutes = require('./routes/auth');
 const oauthRoutes = require('./routes/oauth');
+const firebaseAuthRoutes = require('./routes/firebase-auth');
 const serviceRoutes = require('./routes/services');
 const workerRoutes = require('./routes/workers');
 const bookingRoutes = require('./routes/bookings');
@@ -68,7 +69,7 @@ async function start() {
     scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'",
       'https://cdn.tailwindcss.com', 'https://unpkg.com',
       'https://cdn.jsdelivr.net', 'https://cdn.socket.io',
-      'https://cdnjs.cloudflare.com'],
+      'https://cdnjs.cloudflare.com', 'https://www.gstatic.com'],
     styleSrc: ["'self'", "'unsafe-inline'",
       'https://fonts.googleapis.com', 'https://unpkg.com',
       'https://cdn.jsdelivr.net'],
@@ -77,7 +78,10 @@ async function start() {
       'https://*.tile.openstreetmap.org', 'https://unpkg.com',
       'https://*.onrender.com'],
     connectSrc: ["'self'", 'https://nominatim.openstreetmap.org',
+      'https://identitytoolkit.googleapis.com',
+      'https://securetoken.googleapis.com',
       'wss://*.onrender.com', 'https://*.onrender.com'],
+    frameSrc: ["'self'", 'https://www.google.com', 'https://www.gstatic.com'],
     frameAncestors: ["'none'"],
     formAction: ["'self'"],
     baseUri: ["'self'"],
@@ -149,6 +153,7 @@ async function start() {
 
   app.use('/api/auth', authLimiter, authRoutes);
   app.use('/api/auth', authLimiter, oauthRoutes);
+  app.use('/api/auth', authLimiter, firebaseAuthRoutes);
   app.use('/api/services', serviceRoutes);
   app.use('/api/workers', workerRoutes);
   app.use('/api/bookings', bookingRoutes);

@@ -36,6 +36,10 @@ async function initSchema() {
   await client.execute("CREATE TABLE IF NOT EXISTS payments (id TEXT PRIMARY KEY, booking_id TEXT NOT NULL, customer_id TEXT NOT NULL, amount REAL NOT NULL, method TEXT NOT NULL CHECK(method IN ('cash', 'online')), transaction_id TEXT, gateway TEXT DEFAULT 'simulated', status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'success', 'failed', 'refunded')), paid_at TEXT, created_at TEXT DEFAULT (datetime('now')), FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE, FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE)");
   await client.execute("CREATE TABLE IF NOT EXISTS payment_receipts (id TEXT PRIMARY KEY, booking_id TEXT NOT NULL, payment_id TEXT NOT NULL, receipt_no TEXT NOT NULL UNIQUE, invoice_html TEXT, generated_at TEXT DEFAULT (datetime('now')), FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE, FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE CASCADE)");
 
+  try {
+    await client.execute("ALTER TABLE users ADD COLUMN firebase_uid TEXT UNIQUE");
+  } catch (_) {}
+
   console.log('[DB] Schema initialized');
 }
 

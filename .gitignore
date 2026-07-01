@@ -4,3 +4,4 @@ server/*.log
 *.log
 .env
 server/.env
+server/*-firebase-key.json

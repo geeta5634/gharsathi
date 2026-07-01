@@ -4,6 +4,7 @@
   "description": "GharSathi - Har Ghar Ka Sathi | Home Services Platform",
   "scripts": {
     "start": "node server/src/server.js",
-    "seed": "node server/src/seed.js"
+    "seed": "node server/src/seed.js",
+    "setup-firebase": "node setup-firebase.js"
   }
 }

@@ -9,19 +9,12 @@ const ACCESS_EXPIRY = '15m';
 const REFRESH_EXPIRY_DAYS = 7;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 15;
-const OTP_LENGTH = 6;
-const OTP_EXPIRY_MINUTES = 5;
-const OTP_MAX_ATTEMPTS = 3;
 
 const loginAttempts = new Map();
-const otpStore = new Map();
 const accessBlacklist = new Map();
 
 function cleanExpired() {
   const now = Date.now();
-  for (const [key, val] of otpStore.entries()) {
-    if (val.expiresAt < now) otpStore.delete(key);
-  }
   for (const [key, val] of loginAttempts.entries()) {
     if (val.lockedUntil && val.lockedUntil < now) loginAttempts.delete(key);
   }
@@ -70,7 +63,7 @@ async function authenticate(req, res, next) {
     if (decoded.type !== 'access') {
       return res.status(401).json({ error: 'Invalid token type' });
     }
-    const user = await queryOne('SELECT id, name, phone, role, email, location, avatar FROM users WHERE id = ?', decoded.id);
+    const user = await queryOne('SELECT id, name, phone, role, email, location, avatar, firebase_uid FROM users WHERE id = ?', decoded.id);
     if (!user) return res.status(401).json({ error: 'User not found' });
     req.user = user;
     next();
@@ -88,7 +81,7 @@ async function verifyRefreshToken(raw) {
     await execute('DELETE FROM sessions WHERE id = ?', session.id);
     return null;
   }
-  const user = await queryOne('SELECT id, name, phone, role, email, location, avatar FROM users WHERE id = ?', session.user_id);
+  const user = await queryOne('SELECT id, name, phone, role, email, location, avatar, firebase_uid FROM users WHERE id = ?', session.user_id);
   if (!user) return null;
   return { user, session };
 }
@@ -136,39 +129,6 @@ function clearLoginAttempts(phone) {
   loginAttempts.delete(phone);
 }
 
-function generateOtp() {
-  return Math.floor(10 ** (OTP_LENGTH - 1) + Math.random() * 9 * 10 ** (OTP_LENGTH - 1)).toString();
-}
-
-function storeOtp(identifier, otp) {
-  const hash = crypto.createHash('sha256').update(otp).digest('hex');
-  otpStore.set(identifier, {
-    hash,
-    expiresAt: Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000,
-    attempts: 0,
-  });
-}
-
-function verifyOtp(identifier, otp) {
-  const stored = otpStore.get(identifier);
-  if (!stored) return { valid: false, error: 'No OTP requested' };
-  if (stored.expiresAt < Date.now()) {
-    otpStore.delete(identifier);
-    return { valid: false, error: 'OTP expired' };
-  }
-  if (stored.attempts >= OTP_MAX_ATTEMPTS) {
-    otpStore.delete(identifier);
-    return { valid: false, error: 'Too many failed attempts' };
-  }
-  stored.attempts++;
-  const hash = crypto.createHash('sha256').update(otp).digest('hex');
-  if (hash !== stored.hash) {
-    return { valid: false, error: 'Invalid OTP' };
-  }
-  otpStore.delete(identifier);
-  return { valid: true };
-}
-
 function requireRole(...roles) {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
@@ -185,9 +145,6 @@ module.exports = {
   verifyRefreshToken,
   revokeSession,
   revokeAllUserTokens,
-  generateOtp,
-  storeOtp,
-  verifyOtp,
   checkLoginLockout,
   recordFailedAttempt,
   clearLoginAttempts,
