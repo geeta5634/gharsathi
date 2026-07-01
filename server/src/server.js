@@ -21,6 +21,8 @@ const locationRoutes = require('./routes/location');
 const trustScoreRoutes = require('./routes/trustscore');
 const healthRecordRoutes = require('./routes/healthrecord');
 const detectRoutes = require('./routes/detect');
+const availabilityRoutes = require('./routes/availability');
+const paymentRoutes = require('./routes/payments');
 
 const { setupSocket } = require('./services/socket');
 const { setupCronJobs } = require('./services/cron');
@@ -154,6 +156,8 @@ async function start() {
   app.use('/api/trust-score', trustScoreRoutes);
   app.use('/api/health-record', healthRecordRoutes);
   app.use('/api/detect-issue', detectRoutes);
+  app.use('/api/availability', availabilityRoutes);
+  app.use('/api/payments', paymentRoutes);
 
   app.get('/api/stats', (req, res) => {
     try {

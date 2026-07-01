@@ -87,6 +87,12 @@ router.post('/', authenticate, (req, res) => {
       if (!wId.valid) return res.status(400).json({ error: wId.error });
       const worker = queryOne('SELECT id FROM workers WHERE id = ?', wId.value);
       if (!worker) return res.status(400).json({ error: 'Invalid worker' });
+
+      const conflicting = queryOne(
+        "SELECT id FROM bookings WHERE worker_id = ? AND booking_date = ? AND booking_time = ? AND status NOT IN ('cancelled')",
+        wId.value, bDate.value, bTime
+      );
+      if (conflicting) return res.status(409).json({ error: 'Worker already booked at this time slot' });
     }
 
     const pm = payment_method ? validateEnum(payment_method, VALID_PAYMENT_METHODS, 'Payment method') : { valid: true, value: 'cash' };

@@ -255,9 +255,14 @@
                 </div>
                 <div class="bg-white rounded-xl border border-gray-200 p-4">
                     <div class="flex items-center justify-between mb-3"><p class="font-semibold text-gray-800">Date & Time</p></div>
-                    <div class="flex space-x-4">
-                        <div class="flex items-center space-x-2 text-gray-600"><i data-lucide="calendar" class="w-5 h-5 text-blue-500"></i><input type="date" id="booking-date-input" class="text-sm border-none focus:outline-none bg-transparent"></div>
-                        <div class="flex items-center space-x-2 text-gray-600"><i data-lucide="clock" class="w-5 h-5 text-orange-500"></i><input type="time" id="booking-time-input" class="text-sm border-none focus:outline-none bg-transparent"></div>
+                    <div class="flex space-x-4 mb-3">
+                        <div class="flex items-center space-x-2 text-gray-600 flex-1"><i data-lucide="calendar" class="w-5 h-5 text-blue-500 flex-shrink-0"></i><input type="date" id="booking-date-input" onchange="loadAvailableSlots()" class="text-sm w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium text-gray-500 mb-2">Available Time Slots</p>
+                        <div id="time-slots-container" class="grid grid-cols-3 gap-2">
+                            <p class="text-xs text-gray-400 col-span-3 py-2 text-center">Select a date to see available slots</p>
+                        </div>
                     </div>
                 </div>
                 <div class="bg-white rounded-xl border border-gray-200 p-4">
@@ -285,6 +290,85 @@
                 </div>
                 <button onclick="confirmBooking()" id="confirm-booking-btn" class="w-full bg-green-600 text-white py-4 rounded-full font-bold shadow-lg shadow-green-200 active:scale-95 transition flex items-center justify-center">Confirm Booking</button>
             </div>
+        </div>
+
+        <div id="payment" class="screen">
+            <div class="sticky top-16 bg-white z-30 px-4 py-3 border-b flex items-center">
+                <button onclick="showScreen('booking')" class="p-2 -ml-2 hover:bg-gray-100 rounded-full mr-2"><i data-lucide="arrow-left" class="w-5 h-5 text-gray-600"></i></button>
+                <h2 class="font-bold text-gray-800">Online Payment</h2>
+            </div>
+            <div class="p-4 space-y-4">
+                <div class="bg-blue-50 rounded-xl p-4 flex items-center space-x-3">
+                    <div class="bg-blue-500 w-12 h-12 rounded-full flex items-center justify-center text-white"><i data-lucide="credit-card" class="w-6 h-6"></i></div>
+                    <div><p class="text-sm text-gray-500">Amount Due</p><p class="text-2xl font-bold text-gray-800" id="payment-amount">&#8377;0</p></div>
+                </div>
+                <div class="bg-white rounded-xl border border-gray-200 p-4 space-y-4">
+                    <h3 class="font-semibold text-gray-800">Card Details (Demo)</h3>
+                    <div>
+                        <label class="text-xs text-gray-500 block mb-1">Card Number</label>
+                        <input type="text" id="pay-card-number" value="4111111111111111" maxlength="19" class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="formatCardNumber(this)">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs text-gray-500 block mb-1">Expiry Date</label>
+                            <input type="text" id="pay-expiry" value="12/28" maxlength="5" class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="formatExpiry(this)">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-500 block mb-1">CVV</label>
+                            <input type="text" id="pay-cvv" value="123" maxlength="4" class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" inputmode="numeric">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500 block mb-1">Cardholder Name</label>
+                        <input type="text" id="pay-name" class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Name on card" value="Test User">
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl border border-gray-200 p-4">
+                    <p class="text-xs text-gray-500 mb-2">Price Details</p>
+                    <div class="space-y-1 text-sm" id="payment-price-details">
+                        <div class="flex justify-between text-gray-600"><span>Visit Charge</span><span id="pay-visit-charge"></span></div>
+                        <div class="flex justify-between text-gray-600"><span>Service Charge</span><span id="pay-service-charge"></span></div>
+                        <div class="flex justify-between text-gray-600"><span>Platform Fee</span><span id="pay-platform-fee"></span></div>
+                        <div class="border-t pt-1 flex justify-between font-bold text-gray-800"><span>Total</span><span id="pay-total"></span></div>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-400 text-center">This is a demo payment. No real money will be charged.</p>
+                <button onclick="processPayment()" id="pay-btn" class="w-full bg-green-600 text-white py-4 rounded-full font-bold shadow-lg shadow-green-200 active:scale-95 transition flex items-center justify-center">Pay &#8377;<span id="pay-btn-amount">0</span></button>
+            </div>
+        </div>
+
+        <div id="receipt" class="screen">
+            <div class="sticky top-16 bg-white z-30 px-4 py-3 border-b flex items-center">
+                <button onclick="showScreen('bookings')" class="p-2 -ml-2 hover:bg-gray-100 rounded-full mr-2"><i data-lucide="arrow-left" class="w-5 h-5 text-gray-600"></i></button>
+                <h2 class="font-bold text-gray-800">Payment Receipt</h2>
+            </div>
+            <div class="p-4 space-y-4">
+                <div class="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
+                    <div class="bg-green-500 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3"><i data-lucide="check" class="w-8 h-8 text-white"></i></div>
+                    <h3 class="text-xl font-bold text-green-800">Payment Successful!</h3>
+                    <p class="text-green-600 text-sm mt-1">Your booking is confirmed</p>
+                </div>
+                <div id="receipt-details" class="bg-white rounded-xl border border-gray-200 p-4 space-y-2 text-sm">
+                    <div class="flex justify-between"><span class="text-gray-500">Receipt No.</span><span class="font-semibold" id="receipt-number">-</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Booking ID</span><span class="font-mono text-xs" id="receipt-booking">-</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Service</span><span id="receipt-service">-</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Worker</span><span id="receipt-worker">-</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Date & Time</span><span id="receipt-datetime">-</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Payment Method</span><span id="receipt-method" class="capitalize">-</span></div>
+                    <div class="border-t pt-2 flex justify-between font-bold text-gray-800"><span>Amount Paid</span><span id="receipt-amount">-</span></div>
+                </div>
+                <button onclick="showInvoice()" class="w-full bg-blue-600 text-white py-3 rounded-full font-bold flex items-center justify-center"><i data-lucide="file-text" class="w-5 h-5 mr-2"></i> View Invoice</button>
+                <button onclick="showScreen('bookings')" class="w-full border border-gray-300 py-3 rounded-full font-semibold text-gray-700">Go to My Bookings</button>
+            </div>
+        </div>
+
+        <div id="invoice" class="screen">
+            <div class="sticky top-16 bg-white z-30 px-4 py-3 border-b flex items-center justify-between">
+                <button onclick="showScreen('receipt')" class="p-2 -ml-2 hover:bg-gray-100 rounded-full"><i data-lucide="arrow-left" class="w-5 h-5 text-gray-600"></i></button>
+                <h2 class="font-bold text-gray-800">Invoice</h2>
+                <button onclick="downloadInvoice()" class="text-blue-600 text-sm font-medium">Download</button>
+            </div>
+            <div class="p-4" id="invoice-content"></div>
         </div>
 
         <div id="tracking" class="screen">
@@ -338,6 +422,7 @@
                 <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 mb-6">
                     <button class="w-full flex items-center justify-between p-4 hover:bg-gray-50" onclick="showScreen('home')"><span class="font-medium text-gray-800">My Bookings</span><i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i></button>
                     <button class="w-full flex items-center justify-between p-4 hover:bg-gray-50" onclick="showScreen('health-record')"><span class="font-medium text-gray-800">Ghar Ka Health Record</span><i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i></button>
+                    <button class="w-full flex items-center justify-between p-4 hover:bg-gray-50" onclick="showScreen('payment-history');loadPaymentHistory()"><span class="font-medium text-gray-800">Payment History</span><i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i></button>
                     <button class="w-full flex items-center justify-between p-4 hover:bg-gray-50" onclick="showScreen('detect')"><span class="font-medium text-gray-800">AI Problem Detection</span><i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i></button>
                     <button class="w-full flex items-center justify-between p-4 hover:bg-gray-50" onclick="showToast('info', 'Support: 8690094699')"><span class="font-medium text-gray-800">Help & Support</span><i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i></button>
                     <button class="w-full flex items-center justify-between p-4 hover:bg-gray-50" onclick="logout()"><span class="font-medium text-red-600">Logout</span><i data-lucide="log-out" class="w-5 h-5 text-red-600"></i></button>
@@ -394,6 +479,17 @@
         <div class="fixed bottom-16 max-w-[480px] w-full left-1/2 -translate-x-1/2 text-center py-1 bg-white/80 backdrop-blur-sm text-xs z-40">
             <a href="index.html" class="text-gray-400 hover:text-blue-500">GharSathi Home</a>
         </div>
+
+        <div id="payment-history" class="screen">
+            <div class="sticky top-16 bg-white z-30 px-4 py-3 border-b flex items-center">
+                <button onclick="showScreen('profile')" class="p-2 -ml-2 hover:bg-gray-100 rounded-full mr-2"><i data-lucide="arrow-left" class="w-5 h-5 text-gray-600"></i></button>
+                <h2 class="font-bold text-gray-800">Payment History</h2>
+            </div>
+            <div class="p-4 space-y-3" id="payment-history-list">
+                <p class="text-center text-gray-500 py-4 text-sm">Loading...</p>
+            </div>
+        </div>
+
         <nav class="bottom-nav px-6 py-2 flex justify-between items-center">
             <button onclick="showScreen('home')" class="flex flex-col items-center space-y-1 text-blue-600 nav-item active" data-screen="home"><i data-lucide="home" class="w-6 h-6"></i><span class="text-xs">Home</span></button>
             <button onclick="showScreen('bookings')" class="flex flex-col items-center space-y-1 text-gray-400 nav-item" data-screen="bookings"><i data-lucide="calendar" class="w-6 h-6"></i><span class="text-xs">Bookings</span></button>
@@ -668,6 +764,8 @@
             reviews.innerHTML = '<p class="text-center text-gray-400 text-sm py-4">Loading reviews...</p>';
         }
 
+        let selectedSlotTime = null;
+
         function bookWorker() {
             if (!selectedWorker || !currentService) return;
             const w = selectedWorker;
@@ -678,16 +776,57 @@
             document.getElementById('booking-visit-charge').textContent = '₹' + w.visit_charge;
             document.getElementById('booking-total').textContent = '₹' + (w.visit_charge + 549);
             document.getElementById('booking-trust').textContent = (w.trust_score || 95) + '%';
+            selectedSlotTime = null;
             const today = new Date();
-            document.getElementById('booking-date-input').value = today.toISOString().split('T')[0];
-            document.getElementById('booking-time-input').value = '10:00';
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            document.getElementById('booking-date-input').value = tomorrow.toISOString().split('T')[0];
             showScreen('booking');
+            setTimeout(loadAvailableSlots, 300);
             try { lucide.createIcons(); } catch(e) {}
         }
+
+        async function loadAvailableSlots() {
+            const date = document.getElementById('booking-date-input').value;
+            const container = document.getElementById('time-slots-container');
+            if (!date || !selectedWorker) {
+                container.innerHTML = '<p class="text-xs text-gray-400 col-span-3 py-2 text-center">Select a date to see available slots</p>';
+                return;
+            }
+            container.innerHTML = '<p class="text-xs text-gray-400 col-span-3 py-2 text-center"><span class="loading-spinner mr-2"></span> Loading slots...</p>';
+            const slots = await apiFetch('/availability/worker/' + selectedWorker.id + '/slots?date=' + date);
+            if (!slots || !slots.length) {
+                container.innerHTML = '<p class="text-xs text-gray-400 col-span-3 py-2 text-center">No available slots for this date</p>';
+                return;
+            }
+            container.innerHTML = slots.map(s => `
+                <button onclick="selectSlot('${s.time}', this)" class="slot-btn text-sm py-2 px-2 rounded-lg border border-gray-200 text-gray-700 hover:border-blue-500 hover:text-blue-600 transition text-center" data-time="${s.time}">
+                    ${s.time}
+                </button>
+            `).join('');
+            if (selectedSlotTime) {
+                const btn = container.querySelector(`[data-time="${selectedSlotTime}"]`);
+                if (btn) selectSlot(selectedSlotTime, btn);
+            }
+            try { lucide.createIcons(); } catch(e) {}
+        }
+
+        function selectSlot(time, btn) {
+            selectedSlotTime = time;
+            document.querySelectorAll('.slot-btn').forEach(b => {
+                b.className = 'slot-btn text-sm py-2 px-2 rounded-lg border text-center transition ' +
+                    (b.dataset.time === time ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 text-gray-700 hover:border-blue-500 hover:text-blue-600');
+            });
+        }
+
+        let pendingPaymentBooking = null;
 
         async function confirmBooking() {
             if (!currentUser) { showToast('error', 'Please login first'); showScreen('login'); return; }
             if (!selectedWorker || !currentService) return;
+            if (!selectedSlotTime) { showToast('error', 'Please select a time slot'); return; }
+
+            const paymentMethod = document.querySelector('input[name="payment"]:checked')?.value || 'cash';
 
             const btn = document.getElementById('confirm-booking-btn');
             btn.innerHTML = '<span class="loading-spinner"></span> Booking...';
@@ -699,9 +838,10 @@
                     service_id: currentService.id,
                     worker_id: selectedWorker.id,
                     booking_date: document.getElementById('booking-date-input').value,
-                    booking_time: document.getElementById('booking-time-input').value,
+                    booking_time: selectedSlotTime,
                     address: document.getElementById('booking-address').value,
                     visit_charge: selectedWorker.visit_charge,
+                    payment_method: paymentMethod,
                 })
             });
 
@@ -710,10 +850,127 @@
 
             if (data && data.id) {
                 currentBooking = data;
-                showToast('success', 'Booking confirmed!');
-                showTracking(data);
-                await loadMyBookings();
+                if (paymentMethod === 'cash') {
+                    await apiFetch('/payments/initiate', {
+                        method: 'POST',
+                        body: JSON.stringify({ booking_id: data.id, method: 'cash' })
+                    });
+                    showToast('success', 'Booking confirmed! Pay cash on service.');
+                    await loadMyBookings();
+                    showTracking(data);
+                } else {
+                    pendingPaymentBooking = data;
+                    showPaymentScreen(data);
+                }
+            } else if (data && data.error) {
+                showToast('error', data.error);
             }
+        }
+
+        function showPaymentScreen(booking) {
+            const w = selectedWorker;
+            document.getElementById('payment-amount').textContent = '\u20B9' + booking.total_amount;
+            document.getElementById('pay-visit-charge').textContent = '\u20B9' + booking.visit_charge;
+            document.getElementById('pay-service-charge').textContent = '\u20B9' + booking.service_charge;
+            document.getElementById('pay-platform-fee').textContent = '\u20B9' + booking.platform_fee;
+            document.getElementById('pay-total').textContent = '\u20B9' + booking.total_amount;
+            document.getElementById('pay-btn-amount').textContent = booking.total_amount;
+            showScreen('payment');
+        }
+
+        async function processPayment() {
+            if (!pendingPaymentBooking) return;
+            const btn = document.getElementById('pay-btn');
+            btn.innerHTML = '<span class="loading-spinner"></span> Processing...';
+            btn.disabled = true;
+
+            const data = await apiFetch('/payments/verify', {
+                method: 'POST',
+                body: JSON.stringify({ booking_id: pendingPaymentBooking.id })
+            });
+
+            btn.innerHTML = 'Pay \u20B9<span id="pay-btn-amount"></span>';
+            btn.disabled = false;
+
+            if (data && data.status === 'success') {
+                showToast('success', 'Payment successful!');
+                showReceipt(pendingPaymentBooking, data);
+                await loadMyBookings();
+            } else {
+                showToast('error', data?.error || 'Payment failed');
+            }
+        }
+
+        function showReceipt(booking, paymentData) {
+            document.getElementById('receipt-number').textContent = paymentData.receipt?.receipt_no || 'N/A';
+            document.getElementById('receipt-booking').textContent = '#' + booking.id;
+            document.getElementById('receipt-service').textContent = booking.service_name || currentService?.name || '-';
+            document.getElementById('receipt-worker').textContent = booking.worker_name || selectedWorker?.name || '-';
+            document.getElementById('receipt-datetime').textContent = booking.booking_date + ' at ' + (selectedSlotTime || booking.booking_time);
+            document.getElementById('receipt-method').textContent = 'Online Payment';
+            document.getElementById('receipt-amount').textContent = '\u20B9' + booking.total_amount;
+            currentReceiptBookingId = booking.id;
+            showScreen('receipt');
+        }
+
+        let currentReceiptBookingId = null;
+
+        async function showInvoice() {
+            if (!currentReceiptBookingId) return;
+            const data = await apiFetch('/payments/receipt/' + currentReceiptBookingId);
+            if (data && data.invoice_html) {
+                document.getElementById('invoice-content').innerHTML = data.invoice_html;
+                showScreen('invoice');
+            } else {
+                showToast('error', 'Invoice not available');
+            }
+        }
+
+        function downloadInvoice() {
+            const content = document.getElementById('invoice-content');
+            if (!content.innerHTML) return;
+            const win = window.open('', '_blank');
+            if (win) {
+                win.document.write(content.innerHTML);
+                win.document.title = 'GharSathi Invoice';
+                win.print();
+            }
+        }
+
+        function formatCardNumber(input) {
+            let val = input.value.replace(/\D/g, '').slice(0, 16);
+            input.value = val.replace(/(.{4})/g, '$1 ').trim();
+        }
+
+        function formatExpiry(input) {
+            let val = input.value.replace(/\D/g, '').slice(0, 4);
+            if (val.length > 2) val = val.slice(0, 2) + '/' + val.slice(2);
+            input.value = val;
+        }
+
+        async function loadPaymentHistory() {
+            const container = document.getElementById('payment-history-list');
+            const data = await apiFetch('/payments/history');
+            if (!data || !data.length) {
+                container.innerHTML = '<p class="text-center text-gray-500 py-4 text-sm">No payment history</p>';
+                return;
+            }
+            container.innerHTML = data.map(p => `
+                <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <p class="font-semibold text-gray-800">${p.service_name}</p>
+                            <p class="text-xs text-gray-500">${p.booking_date} • ${p.worker_name || 'N/A'}</p>
+                        </div>
+                        <span class="px-2 py-1 text-xs rounded-full ${p.status === 'success' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'} capitalize">${p.status}</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-500"><i data-lucide="credit-card" class="w-3 h-3 inline mr-1"></i>${p.method} ${p.receipt_no ? '• ' + p.receipt_no : ''}</span>
+                        <span class="font-bold text-gray-800">\u20B9${p.amount}</span>
+                    </div>
+                </div>
+            `).join('');
+            try { lucide.createIcons(); } catch(e) {}
         }
 
         let trackingMap = null;
