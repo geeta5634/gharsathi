@@ -1,7 +1,7 @@
 {
   "framework": "nextjs",
   "buildCommand": "npm run build",
-  "installCommand": "npm install --ignore-scripts",
+  "installCommand": "npm install --omit=optional",
   "outputDirectory": ".next",
   "env": {
     "NEXT_PUBLIC_API_URL": "https://gharsathi-api.onrender.com/api",
