@@ -9,7 +9,7 @@ const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
 let initialized = false;
 
 if (serviceAccount) {
-  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+  admin.initializeApp({ credential: admin.cert(serviceAccount) });
   initialized = true;
   console.log('[Firebase] Admin SDK initialized (service account)');
 } else if (projectId) {
