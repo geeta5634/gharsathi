@@ -1,8 +1,11 @@
 node_modules/
 .next/
+.netlify/
 .env
 .env.local
 *.log
 .DS_Store
 dist/
 build/
+next-env.d.ts
+backend/.env
