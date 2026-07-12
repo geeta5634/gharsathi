@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import api from '../../../lib/api';
-import StatsCard from '../../../components/StatsCard';
-import StatusBadge from '../../../components/StatusBadge';
+import api from '@/lib/api';
+import StatsCard from '@/components/StatsCard';
+import StatusBadge from '@/components/StatusBadge';
 import { FaUserTie, FaUsers, FaCalendarCheck, FaMoneyBillWave, FaSpinner, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Legend } from 'recharts';
 

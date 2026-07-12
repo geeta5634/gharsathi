@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import api from '../../../lib/api';
-import TrustScoreBadge from '../../../components/TrustScoreBadge';
-import { useAuth } from '../../../lib/auth';
+import api from '@/lib/api';
+import TrustScoreBadge from '@/components/TrustScoreBadge';
+import { useAuth } from '@/lib/auth';
 import { FaUser, FaPhone, FaEnvelope, FaSpinner, FaSave, FaBriefcase, FaCalendar } from 'react-icons/fa';
 
 const serviceOptions = ['Plumber', 'Electrician', 'Carpenter', 'House Painter', 'House Cleaning', 'Driver / Maid'];

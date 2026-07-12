@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import api from '../../../lib/api';
-import BookingCard from '../../../components/BookingCard';
-import StatusBadge from '../../../components/StatusBadge';
+import api from '@/lib/api';
+import BookingCard from '@/components/BookingCard';
+import StatusBadge from '@/components/StatusBadge';
 import { FaSpinner, FaPhone, FaPlayCircle, FaCheckCircle, FaCalendarCheck } from 'react-icons/fa';
 
 const filters = ['All', 'Active', 'Completed', 'Cancelled'];

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuth } from '../../lib/auth';
+import { useAuth } from '@/lib/auth';
 import toast from 'react-hot-toast';
 import { FaPhone, FaLock, FaSpinner } from 'react-icons/fa';
 

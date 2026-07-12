@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import api from '../../../lib/api';
-import BookingCard from '../../../components/BookingCard';
+import api from '@/lib/api';
+import BookingCard from '@/components/BookingCard';
 import { FaSpinner, FaCalendarCheck } from 'react-icons/fa';
 
 const filters = ['All', 'Pending', 'Active', 'Completed', 'Cancelled'];

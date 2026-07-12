@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useAuth } from '../../../lib/auth';
-import api from '../../../lib/api';
-import StatsCard from '../../../components/StatsCard';
-import BookingCard from '../../../components/BookingCard';
-import TrustScoreBadge from '../../../components/TrustScoreBadge';
+import { useAuth } from '@/lib/auth';
+import api from '@/lib/api';
+import StatsCard from '@/components/StatsCard';
+import BookingCard from '@/components/BookingCard';
+import TrustScoreBadge from '@/components/TrustScoreBadge';
 import { FaCalendarCheck, FaMoneyBillWave, FaStar, FaBell } from 'react-icons/fa';
 
 export default function WorkerDashboard() {

@@ -1,6 +1,6 @@
 "use client";
 
-import { AuthProvider } from '../lib/auth';
+import { AuthProvider } from '@/lib/auth';
 import { Toaster } from 'react-hot-toast';
 
 export default function Providers({ children }) {

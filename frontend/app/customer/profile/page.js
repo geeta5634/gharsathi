@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { useAuth } from '../../../lib/auth';
+import { useAuth } from '@/lib/auth';
 import toast from 'react-hot-toast';
 import { FaUser, FaPhone, FaEnvelope, FaLock, FaSave, FaSpinner } from 'react-icons/fa';
 
@@ -17,7 +17,7 @@ export default function CustomerProfile() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const api = (await import('../../../lib/api')).default;
+      const api = (await import('@/lib/api')).default;
       await api.put('/customer/profile', form);
       toast.success('Profile updated!');
     } catch {

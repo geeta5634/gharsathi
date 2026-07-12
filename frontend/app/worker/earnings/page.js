@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import api from '../../../lib/api';
-import StatsCard from '../../../components/StatsCard';
+import api from '@/lib/api';
+import StatsCard from '@/components/StatsCard';
 import { FaMoneyBillWave, FaCalendar, FaCreditCard, FaSpinner } from 'react-icons/fa';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 

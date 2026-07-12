@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useAuth } from '../../../lib/auth';
-import api from '../../../lib/api';
-import StatsCard from '../../../components/StatsCard';
-import BookingCard from '../../../components/BookingCard';
+import { useAuth } from '@/lib/auth';
+import api from '@/lib/api';
+import StatsCard from '@/components/StatsCard';
+import BookingCard from '@/components/BookingCard';
 import { FaCalendarCheck, FaMoneyBillWave, FaCrown, FaBolt, FaWrench, FaPaintRoller, FaBroom, FaHammer, FaCar } from 'react-icons/fa';
 
 const quickServices = [

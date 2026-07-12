@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import api from '../../../lib/api';
+import api from '@/lib/api';
 import { FaSpinner, FaSearch } from 'react-icons/fa';
 
 export default function AdminCustomers() {

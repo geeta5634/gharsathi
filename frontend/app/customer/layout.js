@@ -1,6 +1,6 @@
 "use client";
 
-import Sidebar from '../../components/Sidebar';
+import Sidebar from '@/components/Sidebar';
 import { FaHome, FaCalendarCheck, FaCrown, FaUser } from 'react-icons/fa';
 
 const links = [

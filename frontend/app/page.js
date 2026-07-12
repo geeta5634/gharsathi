@@ -1,10 +1,10 @@
 "use client";
 
 import Link from 'next/link';
-import { useAuth } from '../lib/auth';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
-import ServiceCard from '../components/ServiceCard';
+import { useAuth } from '@/lib/auth';
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
+import ServiceCard from '@/components/ServiceCard';
 import { FaWrench, FaBolt, FaPaintRoller, FaBroom, FaCar, FaHammer, FaHandshake, FaShieldAlt, FaBrain, FaMapMarkerAlt, FaClock, FaStar, FaCheckCircle, FaArrowRight, FaUsers, FaCalendarCheck, FaCity } from 'react-icons/fa';
 
 const services = [

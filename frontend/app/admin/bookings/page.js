@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import api from '../../../lib/api';
-import StatusBadge from '../../../components/StatusBadge';
+import api from '@/lib/api';
+import StatusBadge from '@/components/StatusBadge';
 import { FaSpinner, FaSearch, FaFilter } from 'react-icons/fa';
 
 const statusFilters = ['All', 'Pending', 'Active', 'Completed', 'Cancelled'];

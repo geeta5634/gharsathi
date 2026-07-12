@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import api from '../../../lib/api';
-import TrustScoreBadge from '../../../components/TrustScoreBadge';
+import api from '@/lib/api';
+import TrustScoreBadge from '@/components/TrustScoreBadge';
 import { FaSpinner, FaSearch, FaCheckCircle, FaTimesCircle, FaEye } from 'react-icons/fa';
 
 const statusColors = { approved: 'bg-green-100 text-green-700', pending: 'bg-yellow-100 text-yellow-700', rejected: 'bg-red-100 text-red-700' };

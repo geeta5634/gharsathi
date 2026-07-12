@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import api from '../../../lib/api';
+import api from '@/lib/api';
 import { FaSpinner, FaUser, FaMapMarkerAlt, FaCalendar, FaMoneyBillWave, FaCheck, FaTimes } from 'react-icons/fa';
 
 export default function WorkerNewBookings() {

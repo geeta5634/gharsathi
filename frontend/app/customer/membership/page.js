@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import api from '../../../lib/api';
-import RazorpayButton from '../../../components/RazorpayButton';
+import api from '@/lib/api';
+import RazorpayButton from '@/components/RazorpayButton';
 import { FaCrown, FaCheckCircle, FaSpinner } from 'react-icons/fa';
 
 const plans = [

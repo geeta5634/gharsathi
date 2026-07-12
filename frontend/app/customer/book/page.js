@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import api from '../../../lib/api';
-import WorkerCard from '../../../components/WorkerCard';
-import RazorpayButton from '../../../components/RazorpayButton';
+import api from '@/lib/api';
+import WorkerCard from '@/components/WorkerCard';
+import RazorpayButton from '@/components/RazorpayButton';
 import { FaWrench, FaBolt, FaPaintRoller, FaBroom, FaCar, FaHammer, FaMapMarkerAlt, FaCalendar, FaClock, FaSpinner, FaExclamationTriangle, FaCreditCard, FaMoneyBill } from 'react-icons/fa';
 
 const serviceIcons = { Plumber: FaWrench, Electrician: FaBolt, Carpenter: FaHammer, 'House Painter': FaPaintRoller, 'House Cleaning': FaBroom, 'Driver / Maid': FaCar };
