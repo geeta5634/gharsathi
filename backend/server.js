@@ -24,9 +24,11 @@ app.use('/api/memberships', require('./routes/memberships'));
 app.use('/api/admin', require('./routes/admin'));
 
 app.get('/api/health', (req, res) => {
+  const mongoose = require('mongoose');
   res.status(200).json({
     success: true,
     message: 'GharSathi API is running',
+    dbConnected: mongoose.connection.readyState === 1,
     timestamp: new Date().toISOString()
   });
 });
