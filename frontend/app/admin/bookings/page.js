@@ -15,7 +15,7 @@ export default function AdminBookings() {
 
   useEffect(() => {
     api.get('/admin/bookings')
-      .then(res => setBookings(res.data.bookings || res.data || []))
+      .then(res => setBookings(res.data.data || []))
       .catch(() => {
         setBookings([
           { _id: 'ab1', serviceType: 'Plumber', status: 'completed', totalAmount: 299, customer: { name: 'Ravi Singh' }, worker: { name: 'Rajesh K.' }, createdAt: '2024-01-18', address: '123 MG Road' },

@@ -12,7 +12,7 @@ export default function WorkerNewBookings() {
 
   useEffect(() => {
     api.get('/bookings/pending')
-      .then(res => setBookings(res.data.bookings || res.data || []))
+      .then(res => setBookings(res.data.data || []))
       .catch(() => {
         setBookings([
           { _id: 'nb1', serviceType: 'Plumber', totalAmount: 199, address: '123 MG Road, Mumbai', scheduledDate: '2024-01-20', scheduledTime: '10:00 AM', description: 'Leaking pipe in bathroom', customer: { name: 'Ravi Singh', phone: '+91 9876543210' } },

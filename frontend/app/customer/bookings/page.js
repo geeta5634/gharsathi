@@ -16,7 +16,7 @@ export default function CustomerBookings() {
     const fetchBookings = async () => {
       try {
         const res = await api.get('/bookings');
-        setBookings(res.data.bookings || res.data || []);
+        setBookings(res.data.data || []);
       } catch {
         setBookings([
           { _id: 'b1', serviceType: 'Plumber', status: 'completed', scheduledDate: '2024-01-15', totalAmount: 199, worker: { name: 'Rajesh Kumar' }, address: '123 MG Road, Mumbai' },

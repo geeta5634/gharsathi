@@ -30,8 +30,10 @@ export default function CustomerDashboard() {
           api.get('/bookings?limit=5').catch(() => ({ data: { bookings: [] } })),
           api.get('/bookings/stats').catch(() => ({ data: {} })),
         ]);
-        setBookings(bookingsRes.data.bookings || bookingsRes.data || []);
-        setStats(statsRes.data);
+          const bData = bookingsRes.data;
+          setBookings(Array.isArray(bData) ? bData : bData.data || bData.bookings || []);
+          const sData = statsRes.data;
+          setStats(sData.data || sData || {});
       } catch {
         // API not connected - use defaults
       } finally {

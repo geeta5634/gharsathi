@@ -17,7 +17,7 @@ export default function WorkerBookings() {
 
   useEffect(() => {
     api.get('/bookings')
-      .then(res => setBookings(res.data.bookings || res.data || []))
+      .then(res => setBookings(res.data.data || []))
       .catch(() => {
         setBookings([
           { _id: 'wb1', serviceType: 'Plumber', status: 'active', scheduledDate: '2024-01-18', totalAmount: 199, customer: { name: 'Ravi Singh', phone: '+91 9876543210' }, address: '123 MG Road, Mumbai' },

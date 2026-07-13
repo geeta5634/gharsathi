@@ -15,7 +15,7 @@ export default function AdminWorkers() {
 
   useEffect(() => {
     api.get('/admin/workers')
-      .then(res => setWorkers(res.data.workers || res.data || []))
+      .then(res => setWorkers(res.data.data || []))
       .catch(() => {
         setWorkers([
           { _id: 'aw1', name: 'Rajesh Kumar', phone: '+91 9876543210', services: ['Plumber'], trustScore: 85, rating: 4.7, experience: 5, status: 'approved' },

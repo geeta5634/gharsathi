@@ -22,7 +22,7 @@ export default function BookService() {
   const [bookingResult, setBookingResult] = useState(null);
 
   useEffect(() => {
-    api.get('/services').then(res => setServices(res.data.services || res.data || [])).catch(() => {
+    api.get('/services').then(res => setServices(res.data.data || [])).catch(() => {
       setServices([
         { name: 'Plumber', description: 'Pipe fitting, leak repair', basePrice: 199 },
         { name: 'Electrician', description: 'Wiring, switch repair', basePrice: 179 },
@@ -40,7 +40,7 @@ export default function BookService() {
     setLoading(true);
     try {
       const res = await api.get(`/workers?service=${name}`);
-      setWorkers(res.data.workers || res.data || []);
+      setWorkers(res.data.data || []);
     } catch {
       setWorkers([
         { _id: '1', name: 'Rajesh Kumar', trustScore: 85, rating: 4.7, experience: 5, services: [{ name }] },

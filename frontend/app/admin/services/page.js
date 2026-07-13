@@ -16,7 +16,7 @@ export default function AdminServices() {
 
   useEffect(() => {
     api.get('/services')
-      .then(res => setServices(res.data.services || res.data || []))
+      .then(res => setServices(res.data.data || []))
       .catch(() => {
         setServices([
           { _id: 's1', name: 'Plumber', description: 'Pipe fitting, leak repair, bathroom fitting', basePrice: 199, active: true },
