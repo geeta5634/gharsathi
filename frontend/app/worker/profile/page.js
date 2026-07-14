@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import toast from 'react-hot-toast';
-import api from '@/lib/api';
 import TrustScoreBadge from '@/components/TrustScoreBadge';
 import { useAuth } from '@/lib/auth';
+import { useWorkerProfile, useUpdateProfile } from '@/lib/hooks';
+import { ProfileSkeleton } from '@/components/Skeletons';
 import { FaUser, FaPhone, FaEnvelope, FaSpinner, FaSave, FaBriefcase, FaCalendar } from 'react-icons/fa';
 
 const serviceOptions = ['Plumber', 'Electrician', 'Carpenter', 'House Painter', 'House Cleaning', 'Driver / Maid'];
@@ -12,34 +12,29 @@ const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
 
 export default function WorkerProfile() {
   const { user } = useAuth();
+  const { data: profile, isLoading } = useWorkerProfile();
+  const updateProfile = useUpdateProfile('worker');
   const [form, setForm] = useState({
     name: '', phone: '', email: '', bio: '', experience: '',
     services: [], availability: {}, trustScore: 75, rating: 4.5,
   });
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    api.get('/worker/profile')
-      .then(res => {
-        const d = res.data.worker || res.data;
-        setForm({
-          name: d.name || user?.name || '',
-          phone: d.phone || user?.phone || '',
-          email: d.email || user?.email || '',
-          bio: d.bio || '',
-          experience: d.experience || '',
-          services: d.services || [],
-          availability: d.availability || {},
-          trustScore: d.trustScore || 75,
-          rating: d.rating || 4.5,
-        });
-      })
-      .catch(() => {
-        setForm(f => ({ ...f, name: user?.name || 'Worker', phone: user?.phone || '', email: user?.email || '' }));
-      })
-      .finally(() => setLoading(false));
-  }, [user]);
+    if (profile || user) {
+      setForm(f => ({
+        ...f,
+        name: profile?.name || user?.name || '',
+        phone: profile?.phone || user?.phone || '',
+        email: profile?.email || user?.email || '',
+        bio: profile?.bio || '',
+        experience: profile?.experience || '',
+        services: profile?.services || [],
+        availability: profile?.availability || {},
+        trustScore: profile?.trustScore || 75,
+        rating: profile?.rating || 4.5,
+      }));
+    }
+  }, [profile, user]);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -57,19 +52,7 @@ export default function WorkerProfile() {
     }));
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      await api.put('/worker/profile', form);
-      toast.success('Profile updated!');
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Update failed');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (loading) return <div className="text-center py-12 text-gray-500"><FaSpinner className="animate-spin text-2xl mx-auto" /></div>;
+  if (isLoading) return <ProfileSkeleton />;
 
   return (
     <div className="max-w-2xl">
@@ -96,7 +79,7 @@ export default function WorkerProfile() {
             <input name="name" value={form.name} onChange={handleChange} className="input-field pl-10" />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="label">Phone</label>
             <div className="relative">
@@ -155,8 +138,8 @@ export default function WorkerProfile() {
         </div>
       </div>
 
-      <button onClick={handleSave} disabled={saving} className="btn-primary mt-6 flex items-center gap-2">
-        {saving ? <><FaSpinner className="animate-spin" /> Saving...</> : <><FaSave /> Save Profile</>}
+      <button onClick={() => updateProfile.mutate(form)} disabled={updateProfile.isPending} className="btn-primary mt-6 flex items-center gap-2">
+        {updateProfile.isPending ? <><FaSpinner className="animate-spin" /> Saving...</> : <><FaSave /> Save Profile</>}
       </button>
     </div>
   );

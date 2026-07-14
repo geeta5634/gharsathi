@@ -1,28 +1,13 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import api from '@/lib/api';
-import { FaSpinner, FaSearch } from 'react-icons/fa';
+import { useState } from 'react';
+import { useAdminCustomers } from '@/lib/hooks';
+import { TableSkeleton } from '@/components/Skeletons';
+import { FaSearch } from 'react-icons/fa';
 
 export default function AdminCustomers() {
-  const [customers, setCustomers] = useState([]);
+  const { data: customers = [], isLoading } = useAdminCustomers();
   const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    api.get('/admin/customers')
-      .then(res => setCustomers(res.data.customers || res.data || []))
-      .catch(() => {
-        setCustomers([
-          { _id: 'c1', name: 'Ravi Singh', phone: '+91 9876543210', email: 'ravi@email.com', totalBookings: 12, totalSpent: 2400, createdAt: '2023-06-15' },
-          { _id: 'c2', name: 'Neha Gupta', phone: '+91 9123456780', email: 'neha@email.com', totalBookings: 8, totalSpent: 1600, createdAt: '2023-08-20' },
-          { _id: 'c3', name: 'Arun Mehta', phone: '+91 9988776655', email: '', totalBookings: 23, totalSpent: 5200, createdAt: '2023-03-10' },
-          { _id: 'c4', name: 'Sunita Devi', phone: '+91 9112233445', email: 'sunita@email.com', totalBookings: 5, totalSpent: 890, createdAt: '2023-11-01' },
-          { _id: 'c5', name: 'Prakash Joshi', phone: '+91 9554433221', email: 'prakash@email.com', totalBookings: 15, totalSpent: 3800, createdAt: '2023-05-25' },
-        ]);
-      })
-      .finally(() => setLoading(false));
-  }, []);
 
   const filtered = customers.filter(c => !search || c.name?.toLowerCase().includes(search.toLowerCase()) || c.phone?.includes(search) || c.email?.toLowerCase().includes(search.toLowerCase()));
 
@@ -35,8 +20,8 @@ export default function AdminCustomers() {
         <input value={search} onChange={e => setSearch(e.target.value)} className="input-field pl-10" placeholder="Search customers..." />
       </div>
 
-      {loading ? (
-        <div className="text-center py-12"><FaSpinner className="animate-spin text-2xl mx-auto text-gray-400" /></div>
+      {isLoading ? (
+        <TableSkeleton rows={5} cols={6} />
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">

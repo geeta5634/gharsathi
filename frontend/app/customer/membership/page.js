@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import api from '@/lib/api';
+import { useState } from 'react';
 import RazorpayButton from '@/components/RazorpayButton';
-import { FaCrown, FaCheckCircle, FaSpinner } from 'react-icons/fa';
+import { useMembership } from '@/lib/hooks';
+import { FaCrown, FaCheckCircle } from 'react-icons/fa';
 
 const plans = [
   { name: 'Basic', price: 99, features: ['5 Bookings/month', 'Standard Workers', 'Phone Support', 'Basic Warranty'] },
@@ -12,16 +12,8 @@ const plans = [
 ];
 
 export default function MembershipPage() {
-  const [currentPlan, setCurrentPlan] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { data: currentPlan } = useMembership();
   const [selectedPlan, setSelectedPlan] = useState(null);
-
-  useEffect(() => {
-    api.get('/membership/current')
-      .then(res => setCurrentPlan(res.data.plan || res.data))
-      .catch(() => setCurrentPlan(null))
-      .finally(() => setLoading(false));
-  }, []);
 
   return (
     <div>
@@ -40,7 +32,7 @@ export default function MembershipPage() {
       )}
 
       <div className="grid md:grid-cols-3 gap-8 max-w-5xl">
-        {plans.map((plan) => (
+        {plans.map(plan => (
           <div key={plan.name} className={`card relative ${plan.popular ? 'ring-2 ring-accent-500' : ''} ${selectedPlan?.name === plan.name ? 'ring-2 ring-primary-500' : ''}`}>
             {plan.popular && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-accent-500 text-white text-xs font-bold px-4 py-1 rounded-full">MOST POPULAR</div>}
             <h3 className="text-xl font-bold text-gray-800 mb-2">{plan.name}</h3>
@@ -54,7 +46,7 @@ export default function MembershipPage() {
             </ul>
             {selectedPlan?.name === plan.name ? (
               <div className="mt-2">
-                <RazorpayButton amount={plan.price} description={`${plan.name} Membership`} onSuccess={() => { setCurrentPlan(plan); setSelectedPlan(null); }} />
+                <RazorpayButton amount={plan.price} description={`${plan.name} Membership`} onSuccess={() => setSelectedPlan(null)} />
               </div>
             ) : (
               <button onClick={() => setSelectedPlan(plan)} className={`w-full py-3 rounded-lg font-semibold transition-all ${plan.popular ? 'bg-accent-500 hover:bg-accent-600 text-white' : 'btn-outline'}`}>

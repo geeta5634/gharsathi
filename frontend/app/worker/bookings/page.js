@@ -1,43 +1,24 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import toast from 'react-hot-toast';
-import api from '@/lib/api';
 import BookingCard from '@/components/BookingCard';
-import StatusBadge from '@/components/StatusBadge';
-import { FaSpinner, FaPhone, FaPlayCircle, FaCheckCircle, FaCalendarCheck } from 'react-icons/fa';
+import { useBookings, useWorkerAction } from '@/lib/hooks';
+import { BookingCardSkeleton } from '@/components/Skeletons';
+import { FaPhone, FaPlayCircle, FaCheckCircle, FaCalendarCheck, FaSpinner } from 'react-icons/fa';
 
 const filters = ['All', 'Active', 'Completed', 'Cancelled'];
 
 export default function WorkerBookings() {
-  const [bookings, setBookings] = useState([]);
+  const { data: bookings = [], isLoading } = useBookings();
   const [filter, setFilter] = useState('All');
-  const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(null);
+  const workerAction = useWorkerAction();
 
-  useEffect(() => {
-    api.get('/bookings')
-      .then(res => setBookings(res.data.data || []))
-      .catch(() => {
-        setBookings([
-          { _id: 'wb1', serviceType: 'Plumber', status: 'active', scheduledDate: '2024-01-18', totalAmount: 199, customer: { name: 'Ravi Singh', phone: '+91 9876543210' }, address: '123 MG Road, Mumbai' },
-          { _id: 'wb2', serviceType: 'Electrician', status: 'completed', scheduledDate: '2024-01-15', totalAmount: 179, customer: { name: 'Neha Gupta', phone: '+91 9123456780' }, address: '45 Nehru Nagar, Delhi' },
-        ]);
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  const updateStatus = async (id, status) => {
-    setUpdating(id);
-    try {
-      await api.put(`/bookings/${id}/status`, { status });
-      setBookings(prev => prev.map(b => b._id === id ? { ...b, status } : b));
-      toast.success(`Booking ${status}`);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Update failed');
-    } finally {
-      setUpdating(null);
-    }
+  const updateStatus = (id, status) => {
+    workerAction.mutate({ id, action: status }, {
+      onSuccess: () => toast.success(`Booking ${status}`),
+      onError: () => toast.error('Update failed'),
+    });
   };
 
   const filtered = filter === 'All' ? bookings : bookings.filter(b => b.status?.toLowerCase() === filter.toLowerCase());
@@ -54,8 +35,8 @@ export default function WorkerBookings() {
         ))}
       </div>
 
-      {loading ? (
-        <div className="text-center py-12 text-gray-500"><FaSpinner className="animate-spin text-2xl mx-auto mb-2" /> Loading...</div>
+      {isLoading ? (
+        <div className="space-y-4">{Array.from({ length: 3 }).map((_, i) => <BookingCardSkeleton key={i} />)}</div>
       ) : filtered.length === 0 ? (
         <div className="card text-center py-12 text-gray-500"><FaCalendarCheck className="text-4xl text-gray-300 mx-auto mb-3" /> No bookings found.</div>
       ) : (
@@ -69,13 +50,13 @@ export default function WorkerBookings() {
                   </a>
                 )}
                 {b.status === 'confirmed' && (
-                  <button onClick={() => updateStatus(b._id, 'active')} disabled={updating === b._id} className="text-sm bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-blue-100">
-                    {updating === b._id ? <FaSpinner className="animate-spin" /> : <FaPlayCircle />} Start Service
+                  <button onClick={() => updateStatus(b._id, 'active')} disabled={workerAction.isPending} className="text-sm bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-blue-100">
+                    {workerAction.isPending ? <FaSpinner className="animate-spin" /> : <FaPlayCircle />} Start Service
                   </button>
                 )}
                 {b.status === 'active' && (
-                  <button onClick={() => updateStatus(b._id, 'completed')} disabled={updating === b._id} className="text-sm bg-green-50 text-green-700 px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-green-100">
-                    {updating === b._id ? <FaSpinner className="animate-spin" /> : <FaCheckCircle />} Complete
+                  <button onClick={() => updateStatus(b._id, 'completed')} disabled={workerAction.isPending} className="text-sm bg-green-50 text-green-700 px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-green-100">
+                    {workerAction.isPending ? <FaSpinner className="animate-spin" /> : <FaCheckCircle />} Complete
                   </button>
                 )}
               </>

@@ -1,31 +1,18 @@
 "use client";
 
-import { useState } from 'react';
 import { useAuth } from '@/lib/auth';
-import toast from 'react-hot-toast';
-import { FaUser, FaPhone, FaEnvelope, FaLock, FaSave, FaSpinner } from 'react-icons/fa';
+import { useUpdateProfile } from '@/lib/hooks';
+import { FaUser, FaPhone, FaEnvelope, FaSave, FaSpinner } from 'react-icons/fa';
+import { useState } from 'react';
 
 export default function CustomerProfile() {
   const { user } = useAuth();
+  const updateProfile = useUpdateProfile('customer');
   const [form, setForm] = useState({
     name: user?.name || '', phone: user?.phone || '', email: user?.email || '',
   });
-  const [saving, setSaving] = useState(false);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const api = (await import('@/lib/api')).default;
-      await api.put('/customer/profile', form);
-      toast.success('Profile updated!');
-    } catch {
-      toast.success('Profile updated!');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   return (
     <div className="max-w-2xl">
@@ -58,8 +45,8 @@ export default function CustomerProfile() {
             <input name="email" value={form.email} onChange={handleChange} className="input-field pl-10" />
           </div>
         </div>
-        <button onClick={handleSave} disabled={saving} className="btn-primary flex items-center gap-2">
-          {saving ? <><FaSpinner className="animate-spin" /> Saving...</> : <><FaSave /> Save Changes</>}
+        <button onClick={() => updateProfile.mutate(form)} disabled={updateProfile.isPending} className="btn-primary flex items-center gap-2">
+          {updateProfile.isPending ? <><FaSpinner className="animate-spin" /> Saving...</> : <><FaSave /> Save Changes</>}
         </button>
       </div>
     </div>

@@ -1,64 +1,35 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import api from '@/lib/api';
-import toast from 'react-hot-toast';
-import { FaSpinner, FaPlus, FaEdit, FaToggleOn, FaToggleOff, FaTimes, FaWrench, FaBolt, FaHammer, FaPaintRoller, FaBroom, FaCar } from 'react-icons/fa';
+import { useState } from 'react';
+import { useServices, useCreateService, useUpdateService } from '@/lib/hooks';
+import { StatsCardSkeleton } from '@/components/Skeletons';
+import { FaPlus, FaEdit, FaToggleOn, FaToggleOff, FaTimes, FaWrench, FaBolt, FaHammer, FaPaintRoller, FaBroom, FaCar } from 'react-icons/fa';
 
 const serviceIcons = { Plumber: FaWrench, Electrician: FaBolt, Carpenter: FaHammer, 'House Painter': FaPaintRoller, 'House Cleaning': FaBroom, 'Driver / Maid': FaCar };
 
 export default function AdminServices() {
-  const [services, setServices] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { data: services = [], isLoading } = useServices();
+  const createService = useCreateService();
+  const updateService = useUpdateService();
   const [showModal, setShowModal] = useState(false);
   const [editService, setEditService] = useState(null);
   const [form, setForm] = useState({ name: '', description: '', basePrice: '', active: true });
 
-  useEffect(() => {
-    api.get('/services')
-      .then(res => setServices(res.data.data || []))
-      .catch(() => {
-        setServices([
-          { _id: 's1', name: 'Plumber', description: 'Pipe fitting, leak repair, bathroom fitting', basePrice: 199, active: true },
-          { _id: 's2', name: 'Electrician', description: 'Wiring, switch repair, fan installation', basePrice: 179, active: true },
-          { _id: 's3', name: 'Carpenter', description: 'Furniture repair, door fitting, shelf work', basePrice: 249, active: true },
-          { _id: 's4', name: 'House Painter', description: 'Interior & exterior painting, texture work', basePrice: 299, active: true },
-          { _id: 's5', name: 'House Cleaning', description: 'Deep cleaning, kitchen, bathroom, full home', basePrice: 149, active: true },
-          { _id: 's6', name: 'Driver / Maid', description: 'Daily driver, part-time maid, cooking help', basePrice: 399, active: false },
-        ]);
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
   const openAdd = () => { setEditService(null); setForm({ name: '', description: '', basePrice: '', active: true }); setShowModal(true); };
   const openEdit = (s) => { setEditService(s); setForm({ name: s.name, description: s.description, basePrice: s.basePrice, active: s.active }); setShowModal(true); };
 
-  const handleSave = async () => {
-    try {
-      if (editService) {
-        await api.put(`/services/${editService._id}`, form);
-        setServices(prev => prev.map(s => s._id === editService._id ? { ...s, ...form } : s));
-        toast.success('Service updated!');
-      } else {
-        const res = await api.post('/services', form);
-        setServices(prev => [...prev, res.data.service || { ...form, _id: Date.now().toString() }]);
-        toast.success('Service added!');
-      }
-      setShowModal(false);
-    } catch {
-      if (editService) {
-        setServices(prev => prev.map(s => s._id === editService._id ? { ...s, ...form } : s));
-      } else {
-        setServices(prev => [...prev, { ...form, _id: Date.now().toString() }]);
-      }
-      setShowModal(false);
-      toast.success(editService ? 'Service updated!' : 'Service added!');
+  const handleSave = () => {
+    if (editService) {
+      updateService.mutate({ id: editService._id, data: form });
+    } else {
+      createService.mutate(form);
     }
+    setShowModal(false);
   };
 
   const toggleActive = (id) => {
-    setServices(prev => prev.map(s => s._id === id ? { ...s, active: !s.active } : s));
-    api.put(`/services/${id}`, { active: services.find(s => s._id === id)?.active === false }).catch(() => {});
+    const svc = services.find(s => s._id === id);
+    updateService.mutate({ id, data: { active: !svc?.active } });
   };
 
   return (
@@ -68,8 +39,10 @@ export default function AdminServices() {
         <button onClick={openAdd} className="btn-primary flex items-center gap-2 text-sm"><FaPlus /> Add Service</button>
       </div>
 
-      {loading ? (
-        <div className="text-center py-12"><FaSpinner className="animate-spin text-2xl mx-auto text-gray-400" /></div>
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => <StatsCardSkeleton key={i} />)}
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {services.map(s => {
@@ -97,7 +70,6 @@ export default function AdminServices() {
         </div>
       )}
 
-      {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">

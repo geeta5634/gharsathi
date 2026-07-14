@@ -1,32 +1,17 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import api from '@/lib/api';
+import { useState } from 'react';
 import StatusBadge from '@/components/StatusBadge';
-import { FaSpinner, FaSearch, FaFilter } from 'react-icons/fa';
+import { useAdminBookings } from '@/lib/hooks';
+import { TableSkeleton } from '@/components/Skeletons';
+import { FaSearch } from 'react-icons/fa';
 
 const statusFilters = ['All', 'Pending', 'Active', 'Completed', 'Cancelled'];
 
 export default function AdminBookings() {
-  const [bookings, setBookings] = useState([]);
+  const { data: bookings = [], isLoading } = useAdminBookings();
   const [filter, setFilter] = useState('All');
   const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    api.get('/admin/bookings')
-      .then(res => setBookings(res.data.data || []))
-      .catch(() => {
-        setBookings([
-          { _id: 'ab1', serviceType: 'Plumber', status: 'completed', totalAmount: 299, customer: { name: 'Ravi Singh' }, worker: { name: 'Rajesh K.' }, createdAt: '2024-01-18', address: '123 MG Road' },
-          { _id: 'ab2', serviceType: 'Electrician', status: 'pending', totalAmount: 179, customer: { name: 'Neha Gupta' }, worker: { name: 'Amit S.' }, createdAt: '2024-01-18', address: '45 Nehru Nagar' },
-          { _id: 'ab3', serviceType: 'House Cleaning', status: 'active', totalAmount: 149, customer: { name: 'Arun M.' }, worker: null, createdAt: '2024-01-17', address: '78 Gandhi Street' },
-          { _id: 'ab4', serviceType: 'Carpenter', status: 'cancelled', totalAmount: 249, customer: { name: 'Sunita D.' }, worker: { name: 'Vikram R.' }, createdAt: '2024-01-16', address: '90 Lake View' },
-          { _id: 'ab5', serviceType: 'House Painter', status: 'completed', totalAmount: 599, customer: { name: 'Prakash J.' }, worker: { name: 'Suresh P.' }, createdAt: '2024-01-15', address: '23 Park Lane' },
-        ]);
-      })
-      .finally(() => setLoading(false));
-  }, []);
 
   const filtered = bookings.filter(b => {
     const matchesFilter = filter === 'All' || b.status?.toLowerCase() === filter.toLowerCase();
@@ -52,8 +37,8 @@ export default function AdminBookings() {
         </div>
       </div>
 
-      {loading ? (
-        <div className="text-center py-12"><FaSpinner className="animate-spin text-2xl mx-auto text-gray-400" /></div>
+      {isLoading ? (
+        <TableSkeleton rows={5} cols={7} />
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">

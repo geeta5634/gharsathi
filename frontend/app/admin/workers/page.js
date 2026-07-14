@@ -1,43 +1,17 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import api from '@/lib/api';
+import { useState } from 'react';
 import TrustScoreBadge from '@/components/TrustScoreBadge';
-import { FaSpinner, FaSearch, FaCheckCircle, FaTimesCircle, FaEye } from 'react-icons/fa';
+import { useAdminAllWorkers, useApproveRejectWorker } from '@/lib/hooks';
+import { TableSkeleton } from '@/components/Skeletons';
+import { FaSearch, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
 
 const statusColors = { approved: 'bg-green-100 text-green-700', pending: 'bg-yellow-100 text-yellow-700', rejected: 'bg-red-100 text-red-700' };
 
 export default function AdminWorkers() {
-  const [workers, setWorkers] = useState([]);
+  const { data: workers = [], isLoading } = useAdminAllWorkers();
   const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [acting, setActing] = useState(null);
-
-  useEffect(() => {
-    api.get('/admin/workers')
-      .then(res => setWorkers(res.data.data || []))
-      .catch(() => {
-        setWorkers([
-          { _id: 'aw1', name: 'Rajesh Kumar', phone: '+91 9876543210', services: ['Plumber'], trustScore: 85, rating: 4.7, experience: 5, status: 'approved' },
-          { _id: 'aw2', name: 'Amit Sharma', phone: '+91 9123456780', services: ['Electrician'], trustScore: 72, rating: 4.3, experience: 3, status: 'approved' },
-          { _id: 'aw3', name: 'Deepak Yadav', phone: '+91 9988776655', services: ['Carpenter'], trustScore: 60, rating: 4.0, experience: 2, status: 'pending' },
-          { _id: 'aw4', name: 'Priya Devi', phone: '+91 9112233445', services: ['House Cleaning'], trustScore: 91, rating: 4.9, experience: 8, status: 'approved' },
-        ]);
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  const handleAction = async (id, action) => {
-    setActing(id);
-    try {
-      await api.put(`/admin/workers/${id}/${action}`);
-      setWorkers(prev => prev.map(w => w._id === id ? { ...w, status: action === 'approve' ? 'approved' : 'rejected' } : w));
-    } catch {
-      setWorkers(prev => prev.map(w => w._id === id ? { ...w, status: action === 'approve' ? 'approved' : 'rejected' } : w));
-    } finally {
-      setActing(null);
-    }
-  };
+  const approveReject = useApproveRejectWorker();
 
   const filtered = workers.filter(w => !search || w.name?.toLowerCase().includes(search.toLowerCase()) || w.services?.some(s => (typeof s === 'string' ? s : s.name)?.toLowerCase().includes(search.toLowerCase())));
 
@@ -50,8 +24,8 @@ export default function AdminWorkers() {
         <input value={search} onChange={e => setSearch(e.target.value)} className="input-field pl-10" placeholder="Search workers..." />
       </div>
 
-      {loading ? (
-        <div className="text-center py-12"><FaSpinner className="animate-spin text-2xl mx-auto text-gray-400" /></div>
+      {isLoading ? (
+        <TableSkeleton rows={5} cols={8} />
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
@@ -80,8 +54,8 @@ export default function AdminWorkers() {
                   <td className="px-4 py-3">
                     {w.status === 'pending' && (
                       <div className="flex gap-1">
-                        <button onClick={() => handleAction(w._id, 'approve')} disabled={acting === w._id} className="text-green-600 hover:text-green-700 p-1"><FaCheckCircle /></button>
-                        <button onClick={() => handleAction(w._id, 'reject')} disabled={acting === w._id} className="text-red-500 hover:text-red-600 p-1"><FaTimesCircle /></button>
+                        <button onClick={() => approveReject.mutate({ id: w._id, action: 'approve' })} disabled={approveReject.isPending} className="text-green-600 hover:text-green-700 p-1"><FaCheckCircle /></button>
+                        <button onClick={() => approveReject.mutate({ id: w._id, action: 'reject' })} disabled={approveReject.isPending} className="text-red-500 hover:text-red-600 p-1"><FaTimesCircle /></button>
                       </div>
                     )}
                   </td>

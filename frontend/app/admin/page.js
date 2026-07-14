@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import api from '@/lib/api';
 import StatsCard from '@/components/StatsCard';
 import StatusBadge from '@/components/StatusBadge';
+import { useAdminStats, useAdminBookings, useAdminPendingWorkers, useApproveRejectWorker } from '@/lib/hooks';
+import { StatsCardSkeleton, TableSkeleton, DashboardSkeleton } from '@/components/Skeletons';
 import { FaUserTie, FaUsers, FaCalendarCheck, FaMoneyBillWave, FaSpinner, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Legend } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 
 const bookingsData = [
   { day: 'Mon', count: 12 }, { day: 'Tue', count: 19 }, { day: 'Wed', count: 15 },
@@ -25,68 +25,29 @@ const statusData = [
 ];
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState({ workers: 0, customers: 0, bookings: 0, revenue: 0 });
-  const [recentBookings, setRecentBookings] = useState([]);
-  const [pendingWorkers, setPendingWorkers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [actingWorker, setActingWorker] = useState(null);
+  const { data: stats, isLoading: statsLoading } = useAdminStats();
+  const { data: recentBookings = [], isLoading: bookingsLoading } = useAdminBookings();
+  const { data: pendingWorkers = [], isLoading: workersLoading } = useAdminPendingWorkers();
+  const approveReject = useApproveRejectWorker();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [statsRes, bookingsRes, workersRes] = await Promise.all([
-          api.get('/admin/stats').catch(() => ({ data: {} })),
-          api.get('/admin/bookings?limit=5').catch(() => ({ data: { bookings: [] } })),
-          api.get('/admin/workers/pending').catch(() => ({ data: { workers: [] } })),
-        ]);
-        setStats({
-          workers: statsRes.data.totalWorkers || 0,
-          customers: statsRes.data.totalCustomers || 0,
-          bookings: statsRes.data.totalBookings || 0,
-          revenue: statsRes.data.totalRevenue || 0,
-        });
-        setRecentBookings(bookingsRes.data.bookings || bookingsRes.data || []);
-        setPendingWorkers(workersRes.data.workers || workersRes.data || []);
-      } catch {
-        setStats({ workers: 523, customers: 10245, bookings: 24680, revenue: 1875000 });
-        setRecentBookings([
-          { _id: 'ab1', serviceType: 'Plumber', status: 'completed', totalAmount: 299, customer: { name: 'Ravi Singh' }, worker: { name: 'Rajesh K.' }, createdAt: '2024-01-18' },
-          { _id: 'ab2', serviceType: 'Electrician', status: 'pending', totalAmount: 179, customer: { name: 'Neha Gupta' }, worker: { name: 'Amit S.' }, createdAt: '2024-01-18' },
-          { _id: 'ab3', serviceType: 'House Cleaning', status: 'active', totalAmount: 149, customer: { name: 'Arun M.' }, worker: { name: 'Priya D.' }, createdAt: '2024-01-17' },
-        ]);
-        setPendingWorkers([
-          { _id: 'pw1', name: 'Mohit Verma', phone: '+91 9876543211', services: ['Plumber'], experience: 3 },
-          { _id: 'pw2', name: 'Deepak Yadav', phone: '+91 9123456781', services: ['Electrician'], experience: 5 },
-        ]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
-
-  const handleWorkerAction = async (id, action) => {
-    setActingWorker(id);
-    try {
-      await api.put(`/admin/workers/${id}/${action}`);
-      setPendingWorkers(prev => prev.filter(w => w._id !== id));
-    } catch {
-      setPendingWorkers(prev => prev.filter(w => w._id !== id));
-    } finally {
-      setActingWorker(null);
-    }
-  };
+  const statsLoadingArr = statsLoading || bookingsLoading;
 
   return (
     <div>
       <h1 className="page-header">Admin Dashboard</h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatsCard icon={FaUserTie} label="Total Workers" value={stats.workers.toLocaleString()} trend="+12% this month" trendUp />
-        <StatsCard icon={FaUsers} label="Total Customers" value={stats.customers.toLocaleString()} trend="+8% this month" trendUp />
-        <StatsCard icon={FaCalendarCheck} label="Total Bookings" value={stats.bookings.toLocaleString()} trend="+15% this month" trendUp />
-        <StatsCard icon={FaMoneyBillWave} label="Total Revenue" value={`₹${stats.revenue.toLocaleString()}`} trend="+20% this month" trendUp />
-      </div>
+      {statsLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {Array.from({ length: 4 }).map((_, i) => <StatsCardSkeleton key={i} />)}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <StatsCard icon={FaUserTie} label="Total Workers" value={(stats?.workers || stats?.totalWorkers || 0).toLocaleString()} trend="+12% this month" trendUp />
+          <StatsCard icon={FaUsers} label="Total Customers" value={(stats?.customers || stats?.totalCustomers || 0).toLocaleString()} trend="+8% this month" trendUp />
+          <StatsCard icon={FaCalendarCheck} label="Total Bookings" value={(stats?.bookings || stats?.totalBookings || 0).toLocaleString()} trend="+15% this month" trendUp />
+          <StatsCard icon={FaMoneyBillWave} label="Total Revenue" value={`₹${(stats?.revenue || stats?.totalRevenue || 0).toLocaleString()}`} trend="+20% this month" trendUp />
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-2 gap-6 mb-8">
         <div className="card">
@@ -137,8 +98,8 @@ export default function AdminDashboard() {
 
         <div className="card lg:col-span-2">
           <h2 className="text-lg font-bold text-gray-800 mb-4">Recent Bookings</h2>
-          {loading ? (
-            <div className="text-center py-8"><FaSpinner className="animate-spin text-xl mx-auto text-gray-400" /></div>
+          {bookingsLoading ? (
+            <div className="py-4"><TableSkeleton rows={3} cols={5} /></div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -168,7 +129,9 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {pendingWorkers.length > 0 && (
+      {workersLoading ? (
+        <div className="card"><TableSkeleton rows={2} cols={3} /></div>
+      ) : pendingWorkers.length > 0 && (
         <div className="card">
           <h2 className="text-lg font-bold text-gray-800 mb-4">Workers Pending Approval</h2>
           <div className="space-y-3">
@@ -179,10 +142,10 @@ export default function AdminDashboard() {
                   <p className="text-sm text-gray-500">📱 {w.phone} | 🛠 {w.services?.join(', ')} | {w.experience}yr exp</p>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => handleWorkerAction(w._id, 'approve')} disabled={actingWorker === w._id} className="btn-success text-sm flex items-center gap-1">
+                  <button onClick={() => approveReject.mutate({ id: w._id, action: 'approve' })} disabled={approveReject.isPending} className="btn-success text-sm flex items-center gap-1">
                     <FaCheckCircle /> Approve
                   </button>
-                  <button onClick={() => handleWorkerAction(w._id, 'reject')} disabled={actingWorker === w._id} className="btn-danger text-sm flex items-center gap-1">
+                  <button onClick={() => approveReject.mutate({ id: w._id, action: 'reject' })} disabled={approveReject.isPending} className="btn-danger text-sm flex items-center gap-1">
                     <FaTimesCircle /> Reject
                   </button>
                 </div>
