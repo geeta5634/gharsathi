@@ -23,8 +23,14 @@ export function AuthProvider({ children }) {
     setLoading(false);
   }, []);
 
+  const normalizePhone = (p) => {
+    if (!p) return p;
+    const cleaned = p.replace(/[\s\-\+\(\)]/g, '');
+    return cleaned.startsWith('91') && cleaned.length === 12 ? cleaned.slice(2) : cleaned;
+  };
+
   const login = async (phone, password) => {
-    const res = await api.post('/auth/login', { phone, password });
+    const res = await api.post('/auth/login', { phone: normalizePhone(phone), password });
     const { token, user: userData } = res.data.data;
     localStorage.setItem('gharsathi_token', token);
     localStorage.setItem('gharsathi_user', JSON.stringify(userData));
@@ -33,7 +39,7 @@ export function AuthProvider({ children }) {
   };
 
   const register = async (data) => {
-    const res = await api.post('/auth/register', data);
+    const res = await api.post('/auth/register', { ...data, phone: normalizePhone(data.phone) });
     const { token, user: userData } = res.data.data;
     localStorage.setItem('gharsathi_token', token);
     localStorage.setItem('gharsathi_user', JSON.stringify(userData));

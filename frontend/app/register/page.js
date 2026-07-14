@@ -53,7 +53,7 @@ export default function RegisterPage() {
             <label className="label">Phone Number</label>
             <div className="relative">
               <FaPhone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input type="tel" name="phone" value={form.phone} onChange={handleChange} className="input-field pl-10" placeholder="+91 9876543210" required />
+              <input type="tel" name="phone" value={form.phone} onChange={handleChange} className="input-field pl-10" placeholder="9876543210" required />
             </div>
           </div>
           <div>

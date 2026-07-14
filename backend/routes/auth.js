@@ -16,7 +16,12 @@ const generateToken = (id) => {
 // POST /api/auth/register
 router.post('/register', [
   body('name').trim().notEmpty().withMessage('Name is required'),
-  body('phone').matches(/^\d{10}$/).withMessage('Valid 10-digit phone number is required'),
+  body('phone').custom((val) => {
+    const cleaned = val?.replace(/[\s\-\+\(\)]/g, '');
+    const digits = cleaned?.startsWith('91') && cleaned.length === 12 ? cleaned.slice(2) : cleaned;
+    if (!/^\d{10}$/.test(digits)) throw new Error('Valid 10-digit phone number is required');
+    return true;
+  }),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
   body('role').optional().isIn(['customer', 'worker']).withMessage('Role must be customer or worker')
 ], async (req, res) => {
@@ -27,8 +32,9 @@ router.post('/register', [
     }
 
     const { name, phone, password, role, email } = req.body;
+    const normalizedPhone = phone.replace(/[\s\-\+\(\)]/g, '').replace(/^91/, '');
 
-    const existingUser = await User.findOne({ phone });
+    const existingUser = await User.findOne({ phone: normalizedPhone });
     if (existingUser) {
       return res.status(400).json({
         success: false,
@@ -48,7 +54,7 @@ router.post('/register', [
 
     const user = await User.create({
       name,
-      phone,
+      phone: normalizedPhone,
       password,
       role: role || 'customer',
       email: email || undefined
@@ -74,7 +80,12 @@ router.post('/register', [
 
 // POST /api/auth/login
 router.post('/login', [
-  body('phone').matches(/^\d{10}$/).withMessage('Valid 10-digit phone number is required'),
+  body('phone').custom((val) => {
+    const cleaned = val?.replace(/[\s\-\+\(\)]/g, '');
+    const digits = cleaned?.startsWith('91') && cleaned.length === 12 ? cleaned.slice(2) : cleaned;
+    if (!/^\d{10}$/.test(digits)) throw new Error('Valid 10-digit phone number is required');
+    return true;
+  }),
   body('password').notEmpty().withMessage('Password is required')
 ], async (req, res) => {
   try {
@@ -84,8 +95,9 @@ router.post('/login', [
     }
 
     const { phone, password } = req.body;
+    const normalizedPhone = phone.replace(/[\s\-\+\(\)]/g, '').replace(/^91/, '');
 
-    const user = await User.findOne({ phone }).select('+password');
+    const user = await User.findOne({ phone: normalizedPhone }).select('+password');
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -121,7 +133,12 @@ router.post('/login', [
 
 // POST /api/auth/send-otp
 router.post('/send-otp', [
-  body('phone').matches(/^\d{10}$/).withMessage('Valid 10-digit phone number is required')
+  body('phone').custom((val) => {
+    const cleaned = val?.replace(/[\s\-\+\(\)]/g, '');
+    const digits = cleaned?.startsWith('91') && cleaned.length === 12 ? cleaned.slice(2) : cleaned;
+    if (!/^\d{10}$/.test(digits)) throw new Error('Valid 10-digit phone number is required');
+    return true;
+  })
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -130,17 +147,18 @@ router.post('/send-otp', [
     }
 
     const { phone } = req.body;
+    const normalizedPhone = phone.replace(/[\s\-\+\(\)]/g, '').replace(/^91/, '');
     const otp = generateOTP();
     const otpExpiry = new Date(Date.now() + parseInt(process.env.OTP_EXPIRY || 300000));
 
-    let user = await User.findOne({ phone });
+    let user = await User.findOne({ phone: normalizedPhone });
     if (user) {
       user.otp = otp;
       user.otpExpiry = otpExpiry;
       await user.save({ validateBeforeSave: false });
     }
 
-    const result = await sendOTP(phone, otp);
+    const result = await sendOTP(normalizedPhone, otp);
 
     res.status(200).json({
       success: true,
@@ -158,7 +176,12 @@ router.post('/send-otp', [
 
 // POST /api/auth/verify-otp
 router.post('/verify-otp', [
-  body('phone').matches(/^\d{10}$/).withMessage('Valid phone number is required'),
+  body('phone').custom((val) => {
+    const cleaned = val?.replace(/[\s\-\+\(\)]/g, '');
+    const digits = cleaned?.startsWith('91') && cleaned.length === 12 ? cleaned.slice(2) : cleaned;
+    if (!/^\d{10}$/.test(digits)) throw new Error('Valid phone number is required');
+    return true;
+  }),
   body('otp').isLength({ min: 6, max: 6 }).withMessage('OTP must be 6 digits')
 ], async (req, res) => {
   try {
@@ -168,8 +191,9 @@ router.post('/verify-otp', [
     }
 
     const { phone, otp } = req.body;
+    const normalizedPhone = phone.replace(/[\s\-\+\(\)]/g, '').replace(/^91/, '');
 
-    const user = await User.findOne({ phone }).select('+otp +otpExpiry');
+    const user = await User.findOne({ phone: normalizedPhone }).select('+otp +otpExpiry');
     if (!user) {
       return res.status(404).json({
         success: false,
