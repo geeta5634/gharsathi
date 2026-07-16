@@ -1,7 +1,13 @@
 import { createClient } from './client';
 
+function getClient() {
+  const supabase = getClient();
+  if (!supabase) throw new Error('Supabase not configured');
+  return supabase;
+}
+
 export async function getListings() {
-  const supabase = createClient();
+  const supabase = getClient();
   const { data, error } = await supabase
     .from('listings')
     .select('*, profiles(name, email, phone)')
@@ -11,7 +17,7 @@ export async function getListings() {
 }
 
 export async function getListing(id) {
-  const supabase = createClient();
+  const supabase = getClient();
   const { data, error } = await supabase
     .from('listings')
     .select('*, profiles(name, email, phone)')
@@ -22,7 +28,7 @@ export async function getListing(id) {
 }
 
 export async function createListing(listing) {
-  const supabase = createClient();
+  const supabase = getClient();
   const { data, error } = await supabase
     .from('listings')
     .insert(listing)
@@ -33,7 +39,7 @@ export async function createListing(listing) {
 }
 
 export async function updateListing(id, updates) {
-  const supabase = createClient();
+  const supabase = getClient();
   const { data, error } = await supabase
     .from('listings')
     .update(updates)
@@ -45,7 +51,7 @@ export async function updateListing(id, updates) {
 }
 
 export async function deleteListing(id) {
-  const supabase = createClient();
+  const supabase = getClient();
   const { error } = await supabase
     .from('listings')
     .delete()
@@ -55,7 +61,7 @@ export async function deleteListing(id) {
 }
 
 export async function getUserListings(userId) {
-  const supabase = createClient();
+  const supabase = getClient();
   const { data, error } = await supabase
     .from('listings')
     .select('*')
@@ -66,7 +72,7 @@ export async function getUserListings(userId) {
 }
 
 export async function submitContactMessage(message) {
-  const supabase = createClient();
+  const supabase = getClient();
   const { data, error } = await supabase
     .from('contact_messages')
     .insert(message)
@@ -77,7 +83,7 @@ export async function submitContactMessage(message) {
 }
 
 export async function getContactMessages() {
-  const supabase = createClient();
+  const supabase = getClient();
   const { data, error } = await supabase
     .from('contact_messages')
     .select('*')
@@ -87,7 +93,7 @@ export async function getContactMessages() {
 }
 
 export async function markMessageRead(id) {
-  const supabase = createClient();
+  const supabase = getClient();
   const { error } = await supabase
     .from('contact_messages')
     .update({ is_read: true })
@@ -97,7 +103,7 @@ export async function markMessageRead(id) {
 }
 
 export async function getServices() {
-  const supabase = createClient();
+  const supabase = getClient();
   const { data, error } = await supabase
     .from('services')
     .select('*')
@@ -108,7 +114,7 @@ export async function getServices() {
 }
 
 export async function getTestimonials() {
-  const supabase = createClient();
+  const supabase = getClient();
   const { data, error } = await supabase
     .from('testimonials')
     .select('*')
@@ -119,7 +125,7 @@ export async function getTestimonials() {
 }
 
 export async function getAllUsers() {
-  const supabase = createClient();
+  const supabase = getClient();
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
@@ -129,7 +135,7 @@ export async function getAllUsers() {
 }
 
 export async function getAllListings() {
-  const supabase = createClient();
+  const supabase = getClient();
   const { data, error } = await supabase
     .from('listings')
     .select('*, profiles(name)')

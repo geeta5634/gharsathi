@@ -5,13 +5,23 @@ import { createClient } from './supabase/client';
 
 const AuthContext = createContext(null);
 
+function getClient() {
+  const supabase = createClient();
+  if (!supabase) {
+    console.warn('Supabase not configured - auth disabled');
+    return null;
+  }
+  return supabase;
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async (userId) => {
-    const supabase = createClient();
+    const supabase = getClient();
+    if (!supabase) return;
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
@@ -24,7 +34,12 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    const supabase = createClient();
+    const supabase = getClient();
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         fetchProfile(session.user.id);
@@ -45,7 +60,8 @@ export function AuthProvider({ children }) {
   }, [fetchProfile]);
 
   const login = async (email, password) => {
-    const supabase = createClient();
+    const supabase = getClient();
+    if (!supabase) throw new Error('Supabase not configured');
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
     await fetchProfile(data.user.id);
@@ -53,7 +69,8 @@ export function AuthProvider({ children }) {
   };
 
   const register = async ({ email, password, name, phone, role }) => {
-    const supabase = createClient();
+    const supabase = getClient();
+    if (!supabase) throw new Error('Supabase not configured');
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -66,14 +83,16 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
-    const supabase = createClient();
+    const supabase = getClient();
+    if (!supabase) return;
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
   };
 
   const updateProfile = async (updates) => {
-    const supabase = createClient();
+    const supabase = getClient();
+    if (!supabase || !profile) return;
     const { error } = await supabase
       .from('profiles')
       .update(updates)

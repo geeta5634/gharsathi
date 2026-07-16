@@ -5,7 +5,7 @@ import React from 'react';
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
   static getDerivedStateFromError(error) {
@@ -14,6 +14,7 @@ export default class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('ErrorBoundary caught:', error, errorInfo);
+    this.setState({ errorInfo });
   }
 
   render() {
@@ -25,7 +26,12 @@ export default class ErrorBoundary extends React.Component {
               <span className="text-3xl">!</span>
             </div>
             <h2 className="text-xl font-bold text-gray-800 mb-2">Something went wrong</h2>
-            <p className="text-gray-500 mb-6">An unexpected error occurred. Please try again.</p>
+            <p className="text-gray-500 mb-4">An unexpected error occurred. Please try again.</p>
+            {this.state.error && (
+              <p className="text-xs text-red-600 bg-red-50 rounded-lg p-3 mb-4 font-mono text-left break-all">
+                {this.state.error.toString()}
+              </p>
+            )}
             <button
               onClick={() => { this.setState({ hasError: false, error: null }); window.location.reload(); }}
               className="btn-primary"
