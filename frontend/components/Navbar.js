@@ -2,17 +2,17 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { useAuth } from '../lib/auth';
-import { FaBars, FaTimes, FaUser, FaSignOutAlt } from 'react-icons/fa';
+import { useAuth } from '@/lib/auth';
+import { FaBars, FaTimes, FaUser, FaSignOutAlt, FaHome, FaInfoCircle, FaCogs, FaEnvelope, FaThList } from 'react-icons/fa';
 
 export default function Navbar() {
-  const { user, logout } = useAuth();
+  const { user, profile, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const getDashboardLink = () => {
     if (!user) return '/login';
-    if (user.role === 'admin') return '/admin';
-    if (user.role === 'worker') return '/worker';
+    if (profile?.role === 'admin') return '/admin';
+    if (profile?.role === 'worker') return '/worker';
     return '/customer';
   };
 
@@ -28,15 +28,27 @@ export default function Navbar() {
           </Link>
 
           <div className="hidden md:flex items-center gap-8">
-            <Link href="/" className="text-gray-600 hover:text-primary-600 font-medium transition-colors">Home</Link>
-            <Link href="/#services" className="text-gray-600 hover:text-primary-600 font-medium transition-colors">Services</Link>
-            <Link href="/#about" className="text-gray-600 hover:text-primary-600 font-medium transition-colors">About</Link>
+            <Link href="/" className="text-gray-600 hover:text-primary-600 font-medium transition-colors flex items-center gap-1">
+              <FaHome className="text-sm" /> Home
+            </Link>
+            <Link href="/about" className="text-gray-600 hover:text-primary-600 font-medium transition-colors flex items-center gap-1">
+              <FaInfoCircle className="text-sm" /> About
+            </Link>
+            <Link href="/#services" className="text-gray-600 hover:text-primary-600 font-medium transition-colors flex items-center gap-1">
+              <FaCogs className="text-sm" /> Services
+            </Link>
+            <Link href="/listings" className="text-gray-600 hover:text-primary-600 font-medium transition-colors flex items-center gap-1">
+              <FaThList className="text-sm" /> Listings
+            </Link>
+            <Link href="/contact" className="text-gray-600 hover:text-primary-600 font-medium transition-colors flex items-center gap-1">
+              <FaEnvelope className="text-sm" /> Contact
+            </Link>
             {user ? (
               <div className="flex items-center gap-4">
                 <Link href={getDashboardLink()} className="btn-primary text-sm">
                   <FaUser className="inline mr-1" /> Dashboard
                 </Link>
-                <button onClick={logout} className="text-gray-500 hover:text-red-600 transition-colors">
+                <button onClick={logout} className="text-gray-500 hover:text-red-600 transition-colors" title="Logout">
                   <FaSignOutAlt className="text-lg" />
                 </button>
               </div>
@@ -57,13 +69,26 @@ export default function Navbar() {
       {mobileOpen && (
         <div className="md:hidden bg-white border-t shadow-lg">
           <div className="px-4 py-4 space-y-3">
-            <Link href="/" onClick={() => setMobileOpen(false)} className="block py-2 text-gray-700 hover:text-primary-600 font-medium">Home</Link>
-            <Link href="/#services" onClick={() => setMobileOpen(false)} className="block py-2 text-gray-700 hover:text-primary-600 font-medium">Services</Link>
-            <Link href="/#about" onClick={() => setMobileOpen(false)} className="block py-2 text-gray-700 hover:text-primary-600 font-medium">About</Link>
+            <Link href="/" onClick={() => setMobileOpen(false)} className="block py-2 text-gray-700 hover:text-primary-600 font-medium flex items-center gap-2">
+              <FaHome /> Home
+            </Link>
+            <Link href="/about" onClick={() => setMobileOpen(false)} className="block py-2 text-gray-700 hover:text-primary-600 font-medium flex items-center gap-2">
+              <FaInfoCircle /> About
+            </Link>
+            <Link href="/#services" onClick={() => setMobileOpen(false)} className="block py-2 text-gray-700 hover:text-primary-600 font-medium flex items-center gap-2">
+              <FaCogs /> Services
+            </Link>
+            <Link href="/listings" onClick={() => setMobileOpen(false)} className="block py-2 text-gray-700 hover:text-primary-600 font-medium flex items-center gap-2">
+              <FaThList /> Listings
+            </Link>
+            <Link href="/contact" onClick={() => setMobileOpen(false)} className="block py-2 text-gray-700 hover:text-primary-600 font-medium flex items-center gap-2">
+              <FaEnvelope /> Contact
+            </Link>
+            <hr className="my-2" />
             {user ? (
               <>
                 <Link href={getDashboardLink()} onClick={() => setMobileOpen(false)} className="block py-2 text-primary-600 font-semibold">Dashboard</Link>
-                <button onClick={() => { logout(); setMobileOpen(false); }} className="block py-2 text-red-600 font-medium">Logout</button>
+                <button onClick={() => { logout(); setMobileOpen(false); }} className="block py-2 text-red-600 font-medium w-full text-left">Logout</button>
               </>
             ) : (
               <>

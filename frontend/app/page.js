@@ -1,41 +1,14 @@
 "use client";
 
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ServiceCard from '@/components/ServiceCard';
-import { FaWrench, FaBolt, FaPaintRoller, FaBroom, FaCar, FaHammer, FaHandshake, FaShieldAlt, FaBrain, FaMapMarkerAlt, FaClock, FaStar, FaCheckCircle, FaArrowRight, FaUsers, FaCalendarCheck, FaCity } from 'react-icons/fa';
-
-const services = [
-  { name: 'Plumber', icon: FaWrench, price: 199, color: 'bg-blue-100 text-blue-600', description: 'Pipe fitting, leak repair, bathroom fitting' },
-  { name: 'Electrician', icon: FaBolt, price: 179, color: 'bg-yellow-100 text-yellow-600', description: 'Wiring, switch repair, fan installation' },
-  { name: 'Carpenter', icon: FaHammer, price: 249, color: 'bg-amber-100 text-amber-600', description: 'Furniture repair, door fitting, shelf work' },
-  { name: 'House Painter', icon: FaPaintRoller, price: 299, color: 'bg-purple-100 text-purple-600', description: 'Interior & exterior painting, texture work' },
-  { name: 'House Cleaning', icon: FaBroom, price: 149, color: 'bg-green-100 text-green-600', description: 'Deep cleaning, kitchen, bathroom, full home' },
-  { name: 'Driver / Maid', icon: FaCar, price: 399, color: 'bg-red-100 text-red-600', description: 'Daily driver, part-time maid, cooking help' },
-];
-
-const plans = [
-  {
-    name: 'Basic',
-    price: 99,
-    features: ['5 Bookings/month', 'Standard Workers', 'Phone Support', 'Basic Warranty'],
-    popular: false,
-  },
-  {
-    name: 'Premium',
-    price: 199,
-    features: ['15 Bookings/month', 'Top-Rated Workers', 'Priority Support', 'Extended Warranty', '10% Discount'],
-    popular: true,
-  },
-  {
-    name: 'VIP',
-    price: 299,
-    features: ['Unlimited Bookings', 'Premium Workers', '24/7 Support', 'Full Warranty', '20% Discount', 'Free Emergency Service'],
-    popular: false,
-  },
-];
+import TestimonialsCarousel from '@/components/Testimonials/TestimonialsCarousel';
+import { getServices, getTestimonials } from '@/lib/supabase/listings';
+import { FaCheckCircle, FaCalendarCheck, FaStar, FaArrowRight, FaUsers, FaCity, FaClock, FaShieldAlt, FaBrain, FaMapMarkerAlt, FaHandshake, FaSpinner } from 'react-icons/fa';
 
 const howItWorks = [
   { step: 1, title: 'Choose Service', description: 'Browse through our verified home services and pick what you need.', icon: FaCheckCircle },
@@ -43,8 +16,32 @@ const howItWorks = [
   { step: 3, title: 'Get It Done', description: 'Sit back while our trusted worker handles everything professionally.', icon: FaStar },
 ];
 
+const plans = [
+  { name: 'Basic', price: 99, features: ['5 Bookings/month', 'Standard Workers', 'Phone Support', 'Basic Warranty'], popular: false },
+  { name: 'Premium', price: 199, features: ['15 Bookings/month', 'Top-Rated Workers', 'Priority Support', 'Extended Warranty', '10% Discount'], popular: true },
+  { name: 'VIP', price: 299, features: ['Unlimited Bookings', 'Premium Workers', '24/7 Support', 'Full Warranty', '20% Discount', 'Free Emergency Service'], popular: false },
+];
+
 export default function HomePage() {
   const { user } = useAuth();
+  const [services, setServices] = useState([]);
+  const [testimonials, setTestimonials] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [svc, tst] = await Promise.all([getServices(), getTestimonials()]);
+        setServices(svc || []);
+        setTestimonials(tst || []);
+      } catch (e) {
+        console.error('Failed to load data', e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -100,17 +97,23 @@ export default function HomePage() {
       </section>
 
       {/* Service Categories */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-gray-50" id="services">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-14">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-3">Our Services</h2>
             <p className="text-gray-600 text-lg max-w-2xl mx-auto">Choose from a wide range of professional home services</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {services.map((service) => (
-              <ServiceCard key={service.name} service={service} />
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <FaSpinner className="animate-spin text-4xl text-primary-600" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {services.map((service) => (
+                <ServiceCard key={service.id} service={service} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -136,8 +139,19 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Testimonials */}
+      <section className="py-20 bg-gray-50" id="testimonials">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-3">What Our Customers Say</h2>
+            <p className="text-gray-600 text-lg">Trusted by thousands of happy families across India</p>
+          </div>
+          <TestimonialsCarousel testimonials={testimonials} />
+        </div>
+      </section>
+
       {/* Membership Plans */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-white" id="pricing">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-14">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-3">Membership Plans</h2>
@@ -164,7 +178,7 @@ export default function HomePage() {
                     </li>
                   ))}
                 </ul>
-                <Link href="/register" className={`block text-center py-3 rounded-lg font-semibold transition-all ${plan.popular ? 'bg-accent-500 hover:bg-accent-600 text-white' : 'btn-outline'}`}>
+                <Link href="/register" className={`block text-center py-3 rounded-lg font-semibold transition-all ${plan.popular ? 'bg-accent-500 hover:bg-accent-600 text-white' : 'border-2 border-primary-600 text-primary-600 hover:bg-primary-600 hover:text-white'}`}>
                   Get Started
                 </Link>
               </div>
@@ -182,13 +196,16 @@ export default function HomePage() {
               { icon: FaCalendarCheck, value: '10,000+', label: 'Bookings' },
               { icon: FaStar, value: '4.8', label: 'Rating' },
               { icon: FaCity, value: '25+', label: 'Cities' },
-            ].map((stat, idx) => (
-              <div key={idx} className="text-center">
-                <stat.icon className="text-4xl text-accent-400 mx-auto mb-3" />
-                <div className="text-3xl md:text-4xl font-bold mb-1">{stat.value}</div>
-                <div className="text-blue-200">{stat.label}</div>
-              </div>
-            ))}
+            ].map((stat, idx) => {
+              const Icon = stat.icon;
+              return (
+                <div key={idx} className="text-center">
+                  <Icon className="text-4xl text-accent-400 mx-auto mb-3" />
+                  <div className="text-3xl md:text-4xl font-bold mb-1">{stat.value}</div>
+                  <div className="text-blue-200">{stat.label}</div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -206,15 +223,18 @@ export default function HomePage() {
               { icon: FaShieldAlt, title: 'Worker Trust Score', desc: 'Every worker has a trust score based on verified reviews and performance.' },
               { icon: FaBrain, title: 'AI Problem Detection', desc: 'Our AI helps diagnose issues before the worker arrives for faster service.' },
               { icon: FaMapMarkerAlt, title: 'Neighborhood Network', desc: 'Find trusted workers from your own neighborhood for reliable service.' },
-            ].map((feature, idx) => (
-              <div key={idx} className="text-center p-6 rounded-xl hover:bg-primary-50 transition-all duration-300">
-                <div className="w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <feature.icon className="text-2xl text-primary-600" />
+            ].map((feature, idx) => {
+              const Icon = feature.icon;
+              return (
+                <div key={idx} className="text-center p-6 rounded-xl hover:bg-primary-50 transition-all duration-300">
+                  <div className="w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <Icon className="text-2xl text-primary-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-800 mb-2">{feature.title}</h3>
+                  <p className="text-gray-600 text-sm">{feature.desc}</p>
                 </div>
-                <h3 className="text-lg font-bold text-gray-800 mb-2">{feature.title}</h3>
-                <p className="text-gray-600 text-sm">{feature.desc}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>

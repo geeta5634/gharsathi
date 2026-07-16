@@ -5,12 +5,13 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
 import toast from 'react-hot-toast';
-import { FaUser, FaPhone, FaEnvelope, FaLock, FaSpinner } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaLock, FaSpinner, FaEye, FaEyeSlash, FaPhone } from 'react-icons/fa';
 
 export default function RegisterPage() {
-  const [form, setForm] = useState({ name: '', phone: '', email: '', password: '', role: 'customer' });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', role: 'customer' });
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
+  const { register, login } = useAuth();
   const router = useRouter();
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
@@ -19,12 +20,11 @@ export default function RegisterPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const user = await register(form);
-      toast.success('Registration successful!');
-      if (user.role === 'worker') router.push('/worker');
-      else router.push('/customer');
+      await register(form);
+      toast.success('Account created! You can now log in.');
+      router.push('/login');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Registration failed');
+      toast.error(err.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -50,24 +50,27 @@ export default function RegisterPage() {
             </div>
           </div>
           <div>
-            <label className="label">Phone Number</label>
+            <label className="label">Email Address</label>
             <div className="relative">
-              <FaPhone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input type="tel" name="phone" value={form.phone} onChange={handleChange} className="input-field pl-10" placeholder="9876543210" required />
+              <FaEnvelope className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input type="email" name="email" value={form.email} onChange={handleChange} className="input-field pl-10" placeholder="your@email.com" required />
             </div>
           </div>
           <div>
-            <label className="label">Email (Optional)</label>
+            <label className="label">Phone Number</label>
             <div className="relative">
-              <FaEnvelope className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input type="email" name="email" value={form.email} onChange={handleChange} className="input-field pl-10" placeholder="your@email.com" />
+              <FaPhone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input type="tel" name="phone" value={form.phone} onChange={handleChange} className="input-field pl-10" placeholder="9876543210" />
             </div>
           </div>
           <div>
             <label className="label">Password</label>
             <div className="relative">
               <FaLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input type="password" name="password" value={form.password} onChange={handleChange} className="input-field pl-10" placeholder="Min 6 characters" required minLength={6} />
+              <input type={showPassword ? 'text' : 'password'} name="password" value={form.password} onChange={handleChange} className="input-field pl-10 pr-10" placeholder="Min 6 characters" required minLength={6} />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                {showPassword ? <FaEyeSlash /> : <FaEye />}
+              </button>
             </div>
           </div>
           <div>

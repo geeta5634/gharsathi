@@ -1,64 +1,94 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect } from 'react';
-import api from './api';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createClient } from './supabase/client';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const token = localStorage.getItem('gharsathi_token');
-    const savedUser = localStorage.getItem('gharsathi_user');
-    if (token && savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch {
-        localStorage.removeItem('gharsathi_token');
-        localStorage.removeItem('gharsathi_user');
-      }
+  const fetchProfile = useCallback(async (userId) => {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    if (!error && data) {
+      setProfile(data);
+      setUser({ ...data, id: data.id, email: data.email });
     }
-    setLoading(false);
   }, []);
 
-  const normalizePhone = (p) => {
-    if (!p) return p;
-    const cleaned = p.replace(/[\s\-\+\(\)]/g, '');
-    return cleaned.startsWith('91') && cleaned.length === 12 ? cleaned.slice(2) : cleaned;
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      }
+      setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      } else {
+        setUser(null);
+        setProfile(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [fetchProfile]);
+
+  const login = async (email, password) => {
+    const supabase = createClient();
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    await fetchProfile(data.user.id);
+    return { ...profile, id: data.user.id };
   };
 
-  const login = async (phone, password) => {
-    const res = await api.post('/auth/login', { phone: normalizePhone(phone), password });
-    const { token, user: userData } = res.data.data;
-    localStorage.setItem('gharsathi_token', token);
-    localStorage.setItem('gharsathi_user', JSON.stringify(userData));
-    setUser(userData);
-    return userData;
+  const register = async ({ email, password, name, phone, role }) => {
+    const supabase = createClient();
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { name, phone, role: role || 'customer' },
+      },
+    });
+    if (error) throw error;
+    return data.user;
   };
 
-  const register = async (data) => {
-    const res = await api.post('/auth/register', { ...data, phone: normalizePhone(data.phone) });
-    const { token, user: userData } = res.data.data;
-    localStorage.setItem('gharsathi_token', token);
-    localStorage.setItem('gharsathi_user', JSON.stringify(userData));
-    setUser(userData);
-    return userData;
-  };
-
-  const logout = () => {
-    localStorage.removeItem('gharsathi_token');
-    localStorage.removeItem('gharsathi_user');
+  const logout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
     setUser(null);
+    setProfile(null);
   };
 
-  const isCustomer = user?.role === 'customer';
-  const isWorker = user?.role === 'worker';
-  const isAdmin = user?.role === 'admin';
+  const updateProfile = async (updates) => {
+    const supabase = createClient();
+    const { error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', profile.id);
+    if (error) throw error;
+    setProfile(prev => ({ ...prev, ...updates }));
+    setUser(prev => ({ ...prev, ...updates }));
+  };
+
+  const isCustomer = profile?.role === 'customer';
+  const isWorker = profile?.role === 'worker';
+  const isAdmin = profile?.role === 'admin';
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, isCustomer, isWorker, isAdmin }}>
+    <AuthContext.Provider value={{ user, profile, loading, login, register, logout, updateProfile, isCustomer, isWorker, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );

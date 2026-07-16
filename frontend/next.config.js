@@ -2,11 +2,11 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ['localhost'],
-  },
-  webpack: (config) => {
-    config.resolve.alias['@'] = __dirname;
-    return config;
+    domains: ['localhost', 'your-project-id.supabase.co'],
+    remotePatterns: [
+      { protocol: 'https', hostname: '**' },
+    ],
   },
 }
+
 module.exports = nextConfig

@@ -1,18 +1,27 @@
 "use client";
 
 import { useRouter } from 'next/navigation';
-import { FaArrowRight } from 'react-icons/fa';
+import { FaArrowRight, FaWrench, FaBolt, FaPaintRoller, FaBroom, FaCar, FaHammer } from 'react-icons/fa';
+
+const iconMap = {
+  FaWrench: FaWrench,
+  FaBolt: FaBolt,
+  FaPaintRoller: FaPaintRoller,
+  FaBroom: FaBroom,
+  FaCar: FaCar,
+  FaHammer: FaHammer,
+};
 
 export default function ServiceCard({ service }) {
   const router = useRouter();
-  const Icon = service.icon;
+  const Icon = iconMap[service.icon] || FaWrench;
 
   return (
     <div
       onClick={() => router.push('/register')}
       className="card cursor-pointer group hover:border-primary-300 transition-all duration-300"
     >
-      <div className={`w-16 h-16 ${service.color} rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+      <div className={`w-16 h-16 ${service.color || 'bg-blue-100 text-blue-600'} rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
         <Icon className="text-2xl" />
       </div>
       <h3 className="text-lg font-bold text-gray-800 mb-1">{service.name}</h3>
