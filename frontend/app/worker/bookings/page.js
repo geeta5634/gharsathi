@@ -9,19 +9,23 @@ import { FaPhone, FaPlayCircle, FaCheckCircle, FaCalendarCheck, FaSpinner } from
 
 const filters = ['All', 'Active', 'Completed', 'Cancelled'];
 
+const activeStatuses = ['accepted', 'en_route', 'in_progress'];
+
 export default function WorkerBookings() {
   const { data: bookings = [], isLoading } = useBookings();
   const [filter, setFilter] = useState('All');
   const workerAction = useWorkerAction();
 
-  const updateStatus = (id, status) => {
-    workerAction.mutate({ id, action: status }, {
-      onSuccess: () => toast.success(`Booking ${status}`),
+  const updateStatus = (id, action) => {
+    workerAction.mutate({ id, action }, {
+      onSuccess: () => toast.success(`Booking ${action}`),
       onError: () => toast.error('Update failed'),
     });
   };
 
-  const filtered = filter === 'All' ? bookings : bookings.filter(b => b.status?.toLowerCase() === filter.toLowerCase());
+  const filtered = filter === 'All' ? bookings
+    : filter === 'Active' ? bookings.filter(b => activeStatuses.includes(b.status))
+    : bookings.filter(b => b.status === filter.toLowerCase());
 
   return (
     <div>
@@ -49,13 +53,13 @@ export default function WorkerBookings() {
                     <FaPhone /> Call
                   </a>
                 )}
-                {b.status === 'confirmed' && (
-                  <button onClick={() => updateStatus(b._id, 'active')} disabled={workerAction.isPending} className="text-sm bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-blue-100">
+                {b.status === 'accepted' && (
+                  <button onClick={() => updateStatus(b._id, 'start')} disabled={workerAction.isPending} className="text-sm bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-blue-100">
                     {workerAction.isPending ? <FaSpinner className="animate-spin" /> : <FaPlayCircle />} Start Service
                   </button>
                 )}
-                {b.status === 'active' && (
-                  <button onClick={() => updateStatus(b._id, 'completed')} disabled={workerAction.isPending} className="text-sm bg-green-50 text-green-700 px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-green-100">
+                {b.status === 'in_progress' && (
+                  <button onClick={() => updateStatus(b._id, 'complete')} disabled={workerAction.isPending} className="text-sm bg-green-50 text-green-700 px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-green-100">
                     {workerAction.isPending ? <FaSpinner className="animate-spin" /> : <FaCheckCircle />} Complete
                   </button>
                 )}

@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import api from '@/lib/api';
 import { FaSpinner, FaCheckCircle } from 'react-icons/fa';
 
-export default function RazorpayButton({ amount, onSuccess, bookingId, description }) {
+export default function RazorpayButton({ amount, bookingId, description, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null);
 
@@ -19,17 +20,51 @@ export default function RazorpayButton({ amount, onSuccess, bookingId, descripti
   const handlePayment = async () => {
     setLoading(true);
     try {
+      const orderRes = await api.post('/payments/create-order', {
+        bookingId,
+        amount,
+      });
+
+      if (!orderRes.data.success) {
+        throw new Error(orderRes.data.message || 'Failed to create order');
+      }
+
+      const { orderId, amount: orderAmount, currency, key, mockMode } = orderRes.data.data;
+
+      if (mockMode) {
+        await api.post('/payments/verify', {
+          razorpayOrderId: orderId,
+          razorpayPaymentId: 'mock_pay_' + Date.now(),
+          razorpaySignature: 'mock_sig_' + Date.now(),
+          bookingId,
+        });
+        setStatus('success');
+        toast.success('Payment successful! (Mock)');
+        if (onSuccess) onSuccess();
+        return;
+      }
+
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_placeholder',
-        amount: amount * 100,
-        currency: 'INR',
+        key,
+        amount: orderAmount,
+        currency,
         name: 'GharSathi',
         description: description || 'Service Payment',
-        order_id: bookingId || 'order_' + Date.now(),
-        handler: async () => {
-          setStatus('success');
-          toast.success('Payment successful!');
-          if (onSuccess) onSuccess();
+        order_id: orderId,
+        handler: async (response) => {
+          try {
+            await api.post('/payments/verify', {
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+              bookingId,
+            });
+            setStatus('success');
+            toast.success('Payment successful!');
+            if (onSuccess) onSuccess();
+          } catch {
+            toast.error('Payment verification failed');
+          }
         },
         prefill: { name: '', email: '', contact: '' },
         theme: { color: '#2563eb' },
@@ -46,10 +81,10 @@ export default function RazorpayButton({ amount, onSuccess, bookingId, descripti
         rzp.open();
       } else {
         toast.error('Payment gateway not loaded. Try again.');
+        setLoading(false);
       }
-    } catch {
-      toast.error('Payment initialization failed');
-    } finally {
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Payment initialization failed');
       setLoading(false);
     }
   };

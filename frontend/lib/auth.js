@@ -1,105 +1,92 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { createClient } from './supabase/client';
+import api from './api';
 
 const AuthContext = createContext(null);
-
-function getClient() {
-  const supabase = createClient();
-  if (!supabase) {
-    console.warn('Supabase not configured - auth disabled');
-    return null;
-  }
-  return supabase;
-}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = useCallback(async (userId) => {
-    const supabase = getClient();
-    if (!supabase) return;
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    if (!error && data) {
-      setProfile(data);
-      setUser({ ...data, id: data.id, email: data.email });
+  const fetchUser = useCallback(async () => {
+    const token = localStorage.getItem('gharsathi_token');
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    try {
+      const res = await api.get('/auth/me');
+      if (res.data.success) {
+        const userData = res.data.data;
+        setProfile(userData);
+        setUser(userData);
+        localStorage.setItem('gharsathi_user', JSON.stringify(userData));
+      }
+    } catch {
+      localStorage.removeItem('gharsathi_token');
+      localStorage.removeItem('gharsathi_user');
+      setUser(null);
+      setProfile(null);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    const supabase = getClient();
-    if (!supabase) {
-      setLoading(false);
-      return;
+    const savedUser = localStorage.getItem('gharsathi_user');
+    if (savedUser) {
+      try {
+        const parsed = JSON.parse(savedUser);
+        setProfile(parsed);
+        setUser(parsed);
+      } catch {
+        localStorage.removeItem('gharsathi_user');
+      }
     }
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      }
-      setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
-        setUser(null);
-        setProfile(null);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [fetchProfile]);
+    fetchUser();
+  }, [fetchUser]);
 
   const login = async (email, password) => {
-    const supabase = getClient();
-    if (!supabase) throw new Error('Supabase not configured');
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    await fetchProfile(data.user.id);
-    return { ...profile, id: data.user.id };
+    const res = await api.post('/auth/login', { email, password });
+    if (!res.data.success) throw new Error(res.data.message || 'Login failed');
+    const { user: userData, token } = res.data.data;
+    localStorage.setItem('gharsathi_token', token);
+    localStorage.setItem('gharsathi_user', JSON.stringify(userData));
+    setProfile(userData);
+    setUser(userData);
+    return userData;
   };
 
-  const register = async ({ email, password, name, phone, role }) => {
-    const supabase = getClient();
-    if (!supabase) throw new Error('Supabase not configured');
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { name, phone, role: role || 'customer' },
-      },
-    });
-    if (error) throw error;
-    return data.user;
+  const register = async ({ name, email, phone, password, role }) => {
+    const res = await api.post('/auth/register', { name, email, phone, password, role });
+    if (!res.data.success) {
+      const msg = res.data.errors?.[0]?.msg || res.data.message || 'Registration failed';
+      throw new Error(msg);
+    }
+    return res.data.data;
   };
 
-  const logout = async () => {
-    const supabase = getClient();
-    if (!supabase) return;
-    await supabase.auth.signOut();
+  const logout = () => {
+    localStorage.removeItem('gharsathi_token');
+    localStorage.removeItem('gharsathi_user');
     setUser(null);
     setProfile(null);
   };
 
   const updateProfile = async (updates) => {
-    const supabase = getClient();
-    if (!supabase || !profile) return;
-    const { error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', profile.id);
-    if (error) throw error;
-    setProfile(prev => ({ ...prev, ...updates }));
-    setUser(prev => ({ ...prev, ...updates }));
+    const role = profile?.role;
+    if (role === 'worker') {
+      const res = await api.put('/workers/profile', updates);
+      if (res.data.success) {
+        setProfile(prev => ({ ...prev, ...res.data.data }));
+        setUser(prev => ({ ...prev, ...res.data.data }));
+      }
+    } else {
+      setProfile(prev => ({ ...prev, ...updates }));
+      setUser(prev => ({ ...prev, ...updates }));
+    }
   };
 
   const isCustomer = profile?.role === 'customer';

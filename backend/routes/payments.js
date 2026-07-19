@@ -1,10 +1,16 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const Booking = require('../models/Booking');
+const models = require('../config/modelCompatibility');
 const { protect } = require('../middleware/auth');
-const { createOrder, verifyPayment } = require('../utils/razorpay');
+const { createOrder, verifyPayment, isMockMode } = require('../utils/razorpay');
 
 const router = express.Router();
+
+const saveBooking = async (booking) => {
+  const { _id, ...data } = booking;
+  await models.bookings.update({ _id }, { $set: data });
+};
 
 // POST /api/payments/create-order
 router.post('/create-order', protect, [
@@ -13,33 +19,21 @@ router.post('/create-order', protect, [
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, errors: errors.array() });
-    }
+    if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
 
     const { bookingId, amount } = req.body;
 
-    const booking = await Booking.findById(bookingId);
-    if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: 'Booking not found'
-      });
-    }
-
-    if (booking.customer.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to make payment for this booking'
-      });
-    }
+    const booking = await Booking.findOne({ _id: bookingId });
+    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
+    if (booking.customer !== req.user._id) return res.status(403).json({ success: false, message: 'Not authorized' });
 
     const receipt = `booking_${bookingId}_${Date.now()}`;
     const order = await createOrder(amount, receipt);
 
+    booking.payment = booking.payment || {};
     booking.payment.razorpayOrderId = order.id;
     booking.payment.method = 'online';
-    await booking.save();
+    await saveBooking(booking);
 
     res.status(200).json({
       success: true,
@@ -47,15 +41,13 @@ router.post('/create-order', protect, [
         orderId: order.id,
         amount: order.amount,
         currency: order.currency,
-        key: process.env.RAZORPAY_KEY_ID
+        key: isMockMode() ? 'rzp_test_mock' : process.env.RAZORPAY_KEY_ID,
+        mockMode: isMockMode()
       }
     });
   } catch (error) {
     console.error('Create order error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while creating payment order'
-    });
+    res.status(500).json({ success: false, message: 'Server error while creating payment order' });
   }
 });
 
@@ -68,81 +60,43 @@ router.post('/verify', protect, [
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, errors: errors.array() });
-    }
+    if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
 
     const { razorpayOrderId, razorpayPaymentId, razorpaySignature, bookingId } = req.body;
 
-    const booking = await Booking.findById(bookingId);
-    if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: 'Booking not found'
-      });
-    }
-
-    if (booking.customer.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to verify payment for this booking'
-      });
-    }
+    const booking = await Booking.findOne({ _id: bookingId });
+    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
+    if (booking.customer !== req.user._id) return res.status(403).json({ success: false, message: 'Not authorized' });
 
     const isValid = verifyPayment(razorpayOrderId, razorpayPaymentId, razorpaySignature);
+    if (!isValid) return res.status(400).json({ success: false, message: 'Payment verification failed' });
 
-    if (!isValid) {
-      return res.status(400).json({
-        success: false,
-        message: 'Payment verification failed - invalid signature'
-      });
-    }
-
+    booking.payment = booking.payment || {};
     booking.payment.status = 'completed';
     booking.payment.razorpayPaymentId = razorpayPaymentId;
     booking.payment.razorpaySignature = razorpaySignature;
-    await booking.save();
+    await saveBooking(booking);
 
     res.status(200).json({
       success: true,
       message: 'Payment verified successfully',
-      data: {
-        bookingId: booking._id,
-        amount: booking.price.total,
-        status: 'completed'
-      }
+      data: { bookingId: booking._id, amount: booking.price?.total, status: 'completed' }
     });
   } catch (error) {
     console.error('Verify payment error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while verifying payment'
-    });
+    res.status(500).json({ success: false, message: 'Server error while verifying payment' });
   }
 });
 
 // GET /api/payments/history
 router.get('/history', protect, async (req, res) => {
   try {
-    const bookings = await Booking.find({
-      customer: req.user.id,
-      'payment.status': 'completed'
-    })
-      .populate('service', 'name icon')
-      .select('payment price service createdAt')
-      .sort({ createdAt: -1 });
-
-    res.status(200).json({
-      success: true,
-      count: bookings.length,
-      data: bookings
-    });
+    const bookings = await Booking.find({ customer: req.user._id });
+    const completed = bookings.filter(b => b.payment?.status === 'completed');
+    res.status(200).json({ success: true, count: completed.length, data: completed });
   } catch (error) {
     console.error('Payment history error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while fetching payment history'
-    });
+    res.status(500).json({ success: false, message: 'Server error while fetching payment history' });
   }
 });
 

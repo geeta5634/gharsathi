@@ -13,18 +13,18 @@ const servicePrices = { Plumber: 199, Electrician: 179, Carpenter: 249, 'House P
 
 export default function BookService() {
   const [step, setStep] = useState(1);
-  const [selectedService, setSelectedService] = useState('');
+  const [selectedService, setSelectedService] = useState(null);
   const [selectedWorker, setSelectedWorker] = useState(null);
-  const [form, setForm] = useState({ address: '', description: '', scheduledDate: '', scheduledTime: '', isEmergency: false });
+  const [form, setForm] = useState({ address: '', description: '', scheduledDate: '', scheduledTime: '', isEmergency: false, city: 'City', pincode: '000000' });
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [bookingResult, setBookingResult] = useState(null);
 
   const { data: services = [], isLoading: servicesLoading } = useServices();
-  const { data: workers = [], isLoading: workersLoading } = useWorkersByService(selectedService);
+  const { data: workers = [], isLoading: workersLoading } = useWorkersByService(selectedService?.name);
   const createBooking = useCreateBooking();
 
-  const selectService = (name) => {
-    setSelectedService(name);
+  const selectService = (svc) => {
+    setSelectedService(svc);
     setStep(2);
   };
 
@@ -35,16 +35,17 @@ export default function BookService() {
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
 
-  const basePrice = servicePrices[selectedService] || 199;
+  const basePrice = selectedService?.basePrice || servicePrices[selectedService?.name] || 199;
   const emergencyFee = form.isEmergency ? 100 : 0;
   const gst = Math.round((basePrice + emergencyFee) * 0.18);
   const total = basePrice + emergencyFee + gst;
 
   const handleBooking = () => {
     createBooking.mutate({
-      serviceType: selectedService,
-      workerId: selectedWorker?._id,
+      serviceId: selectedService?._id,
       address: form.address,
+      city: form.city,
+      pincode: form.pincode,
       description: form.description,
       scheduledDate: form.scheduledDate,
       scheduledTime: form.scheduledTime,
@@ -86,11 +87,11 @@ export default function BookService() {
           {services.map(s => {
             const Icon = serviceIcons[s.name] || FaWrench;
             return (
-              <div key={s.name || s._id} onClick={() => selectService(s.name)} className="card cursor-pointer hover:border-primary-300 group">
+              <div key={s._id || s.name} onClick={() => selectService(s)} className="card cursor-pointer hover:border-primary-300 group">
                 <Icon className="text-3xl text-primary-600 mb-3 group-hover:scale-110 transition-transform" />
                 <h3 className="font-bold text-gray-800">{s.name}</h3>
                 <p className="text-sm text-gray-500">{s.description}</p>
-                <p className="text-primary-600 font-bold mt-2">₹{s.basePrice || servicePrices[s.name]}</p>
+                <p className="text-primary-600 font-bold mt-2">₹{s.basePrice}</p>
               </div>
             );
           })}
@@ -120,7 +121,7 @@ export default function BookService() {
         <div className="max-w-2xl">
           <button onClick={() => setStep(2)} className="text-primary-600 hover:text-primary-700 text-sm mb-4">← Change Worker</button>
           <div className="card mb-4">
-            <h3 className="font-bold text-gray-800 mb-2">Selected: {selectedService}</h3>
+            <h3 className="font-bold text-gray-800 mb-2">Selected: {selectedService?.name}</h3>
             <p className="text-sm text-gray-500">Worker: {selectedWorker?.name}</p>
           </div>
           <div className="card space-y-4">
@@ -197,7 +198,7 @@ export default function BookService() {
       {step === 5 && bookingResult && (
         <div className="card max-w-lg">
           <h2 className="text-lg font-bold text-gray-800 mb-4">Complete Payment</h2>
-          <RazorpayButton amount={total} bookingId={bookingResult._id} description={`Booking for ${selectedService}`} onSuccess={() => { setStep(4); toast.success('Payment successful!'); }} />
+          <RazorpayButton amount={total} bookingId={bookingResult._id} description={`Booking for ${selectedService?.name}`} onSuccess={() => { setStep(4); toast.success('Payment successful!'); }} />
         </div>
       )}
     </div>

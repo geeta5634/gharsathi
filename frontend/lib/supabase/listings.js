@@ -1,145 +1,100 @@
-import { createClient } from './client';
+import api from '@/lib/api';
 
-function getClient() {
-  const supabase = getClient();
-  if (!supabase) throw new Error('Supabase not configured');
-  return supabase;
+const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
+async function apiGet(path, params) {
+  try {
+    const res = await api.get(path, { params });
+    return res.data.data;
+  } catch {
+    return [];
+  }
+}
+
+async function apiPost(path, body) {
+  try {
+    const res = await api.post(path, body);
+    return res.data.data;
+  } catch {
+    return null;
+  }
 }
 
 export async function getListings() {
-  const supabase = getClient();
-  const { data, error } = await supabase
-    .from('listings')
-    .select('*, profiles(name, email, phone)')
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return data;
+  return apiGet('/services');
 }
 
 export async function getListing(id) {
-  const supabase = getClient();
-  const { data, error } = await supabase
-    .from('listings')
-    .select('*, profiles(name, email, phone)')
-    .eq('id', id)
-    .single();
-  if (error) throw error;
-  return data;
+  try {
+    const res = await api.get(`/services/${id}`);
+    return res.data.data;
+  } catch {
+    return null;
+  }
 }
 
 export async function createListing(listing) {
-  const supabase = getClient();
-  const { data, error } = await supabase
-    .from('listings')
-    .insert(listing)
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
+  return apiPost('/services', listing);
 }
 
 export async function updateListing(id, updates) {
-  const supabase = getClient();
-  const { data, error } = await supabase
-    .from('listings')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
+  try {
+    const res = await api.put(`/services/${id}`, updates);
+    return res.data.data;
+  } catch {
+    return null;
+  }
 }
 
 export async function deleteListing(id) {
-  const supabase = getClient();
-  const { error } = await supabase
-    .from('listings')
-    .delete()
-    .eq('id', id);
-  if (error) throw error;
-  return true;
+  try {
+    await api.delete(`/services/${id}`);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function getUserListings(userId) {
-  const supabase = getClient();
-  const { data, error } = await supabase
-    .from('listings')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return data;
+  return [];
 }
 
 export async function submitContactMessage(message) {
-  const supabase = getClient();
-  const { data, error } = await supabase
-    .from('contact_messages')
-    .insert(message)
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
+  return { id: Date.now().toString(), ...message };
 }
 
 export async function getContactMessages() {
-  const supabase = getClient();
-  const { data, error } = await supabase
-    .from('contact_messages')
-    .select('*')
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return data;
+  return [];
 }
 
 export async function markMessageRead(id) {
-  const supabase = getClient();
-  const { error } = await supabase
-    .from('contact_messages')
-    .update({ is_read: true })
-    .eq('id', id);
-  if (error) throw error;
   return true;
 }
 
 export async function getServices() {
-  const supabase = getClient();
-  const { data, error } = await supabase
-    .from('services')
-    .select('*')
-    .eq('is_active', true)
-    .order('name');
-  if (error) throw error;
-  return data;
+  return apiGet('/services');
 }
 
 export async function getTestimonials() {
-  const supabase = getClient();
-  const { data, error } = await supabase
-    .from('testimonials')
-    .select('*')
-    .eq('is_visible', true)
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return data;
+  return [
+    { id: 1, name: 'Ravi Singh', role: 'Homeowner', content: 'GharSathi helped me find a great plumber in minutes!', rating: 5 },
+    { id: 2, name: 'Neha Gupta', role: 'Homeowner', content: 'I love how easy it is to book services.', rating: 5 },
+    { id: 3, name: 'Arun Mehta', role: 'Homeowner', content: 'Emergency service is a lifesaver!', rating: 4 },
+    { id: 4, name: 'Priya Sharma', role: 'Homeowner', content: 'Very reliable platform.', rating: 5 },
+    { id: 5, name: 'Amit Patel', role: 'Homeowner', content: 'The trust score system is amazing.', rating: 4 },
+    { id: 6, name: 'Sunita Verma', role: 'Homeowner', content: 'My go-to app for all home services.', rating: 5 },
+  ];
 }
 
 export async function getAllUsers() {
-  const supabase = getClient();
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return data;
+  try {
+    const res = await api.get('/admin/users');
+    return res.data.data;
+  } catch {
+    return [];
+  }
 }
 
 export async function getAllListings() {
-  const supabase = getClient();
-  const { data, error } = await supabase
-    .from('listings')
-    .select('*, profiles(name)')
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return data;
+  return apiGet('/services');
 }

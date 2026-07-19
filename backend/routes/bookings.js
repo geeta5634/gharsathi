@@ -3,10 +3,38 @@ const { body, validationResult } = require('express-validator');
 const Booking = require('../models/Booking');
 const Service = require('../models/Service');
 const Worker = require('../models/Worker');
-const Review = require('../models/Review');
+const models = require('../config/modelCompatibility');
 const { protect, authorize } = require('../middleware/auth');
 
 const router = express.Router();
+
+const populateBooking = async (booking) => {
+  if (!booking) return booking;
+  if (booking.service && typeof booking.service === 'string') {
+    const svc = await Service.findOne({ _id: booking.service });
+    if (svc) booking.service = svc;
+  }
+  if (booking.customer && typeof booking.customer === 'string') {
+    const u = await models.users.findOne({ _id: booking.customer });
+    if (u) { const { password, ...safe } = u; booking.customer = safe; }
+  }
+  if (booking.worker && typeof booking.worker === 'string') {
+    const w = await Worker.findOne({ _id: booking.worker });
+    if (w) {
+      if (w.user && typeof w.user === 'string') {
+        const u = await models.users.findOne({ _id: w.user });
+        if (u) { const { password, ...safe } = u; w.user = safe; }
+      }
+      booking.worker = w;
+    }
+  }
+  return booking;
+};
+
+const saveBooking = async (booking) => {
+  const { _id, ...data } = booking;
+  await models.bookings.update({ _id }, { $set: data });
+};
 
 // POST /api/bookings
 router.post('/', protect, authorize('customer'), [
@@ -23,384 +51,206 @@ router.post('/', protect, authorize('customer'), [
 
     const { service, address, description, scheduledDate, scheduledTime, isEmergency } = req.body;
 
-    const serviceDoc = await Service.findById(service);
+    const serviceDoc = await Service.findOne({ _id: service });
     if (!serviceDoc) {
-      return res.status(404).json({
-        success: false,
-        message: 'Service not found'
-      });
+      return res.status(404).json({ success: false, message: 'Service not found' });
     }
 
     const booking = await Booking.create({
-      customer: req.user.id,
+      customer: req.user._id,
       service,
       address,
-      description,
-      scheduledDate,
-      scheduledTime,
+      description: description || '',
+      scheduledDate: scheduledDate || undefined,
+      scheduledTime: scheduledTime || undefined,
       isEmergency: isEmergency || false,
-      price: {
-        basePrice: serviceDoc.basePrice,
-        total: serviceDoc.basePrice
-      }
+      status: 'pending',
+      price: { basePrice: serviceDoc.basePrice, additionalCharges: 0, discount: 0, total: serviceDoc.basePrice },
+      payment: { method: 'cash', status: 'pending' },
     });
 
-    await booking.populate([
-      { path: 'service', select: 'name icon basePrice' },
-      { path: 'customer', select: 'name phone email' }
-    ]);
+    const populated = await populateBooking(booking);
 
-    res.status(201).json({
-      success: true,
-      data: booking
-    });
+    res.status(201).json({ success: true, data: populated });
   } catch (error) {
     console.error('Create booking error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while creating booking'
-    });
+    res.status(500).json({ success: false, message: 'Server error while creating booking' });
   }
 });
 
 // GET /api/bookings/available
 router.get('/available', protect, authorize('worker'), async (req, res) => {
   try {
-    const worker = await Worker.findOne({ user: req.user.id });
-
+    const worker = await Worker.findOne({ user: req.user._id });
     if (!worker) {
-      return res.status(404).json({
-        success: false,
-        message: 'Worker profile not found'
-      });
+      return res.status(404).json({ success: false, message: 'Worker profile not found' });
     }
 
-    const bookings = await Booking.find({
-      status: 'pending',
-      service: { $in: worker.services },
-      worker: { $exists: false }
-    })
-      .populate('service', 'name icon basePrice')
-      .populate('customer', 'name phone address')
-      .sort({ isEmergency: -1, createdAt: -1 });
+    let bookings = await Booking.find({ status: 'pending' });
+    bookings = bookings.filter(b => !b.worker);
 
-    res.status(200).json({
-      success: true,
-      count: bookings.length,
-      data: bookings
-    });
+    const workerServiceIds = (worker.services || []).map(s => typeof s === 'string' ? s : (s._id || s));
+    bookings = bookings.filter(b => workerServiceIds.includes(b.service));
+
+    bookings.sort((a, b) => (b.isEmergency ? 1 : 0) - (a.isEmergency ? 1 : 0));
+    const populated = await Promise.all(bookings.map(populateBooking));
+
+    res.status(200).json({ success: true, count: populated.length, data: populated });
   } catch (error) {
     console.error('Get available bookings error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while fetching available bookings'
-    });
+    res.status(500).json({ success: false, message: 'Server error while fetching available bookings' });
   }
 });
 
 // GET /api/bookings
 router.get('/', protect, async (req, res) => {
   try {
-    const { status, page = 1, limit = 10 } = req.query;
-    const filter = {};
+    const { status } = req.query;
+    let allBookings = await Booking.find({});
 
     if (req.user.role === 'customer') {
-      filter.customer = req.user.id;
+      allBookings = allBookings.filter(b => b.customer === req.user._id);
     } else if (req.user.role === 'worker') {
-      const worker = await Worker.findOne({ user: req.user.id });
+      const worker = await Worker.findOne({ user: req.user._id });
       if (worker) {
-        filter.worker = worker._id;
+        allBookings = allBookings.filter(b => b.worker === worker._id);
+      } else {
+        allBookings = [];
       }
     }
 
     if (status) {
-      filter.status = status;
+      allBookings = allBookings.filter(b => b.status === status);
     }
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    allBookings.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
-    const bookings = await Booking.find(filter)
-      .populate('service', 'name icon basePrice')
-      .populate('customer', 'name phone')
-      .populate({
-        path: 'worker',
-        populate: { path: 'user', select: 'name phone avatar' }
-      })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    const total = await Booking.countDocuments(filter);
+    const populated = await Promise.all(allBookings.map(populateBooking));
 
     res.status(200).json({
       success: true,
-      count: bookings.length,
-      total,
-      totalPages: Math.ceil(total / parseInt(limit)),
-      currentPage: parseInt(page),
-      data: bookings
+      count: populated.length,
+      total: populated.length,
+      data: populated
     });
   } catch (error) {
     console.error('Get bookings error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while fetching bookings'
-    });
+    res.status(500).json({ success: false, message: 'Server error while fetching bookings' });
   }
 });
 
 // GET /api/bookings/:id
 router.get('/:id', protect, async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.id)
-      .populate('service', 'name icon basePrice description')
-      .populate('customer', 'name phone email address')
-      .populate({
-        path: 'worker',
-        populate: { path: 'user', select: 'name phone avatar' }
-      });
-
+    const booking = await Booking.findOne({ _id: req.params.id });
     if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: 'Booking not found'
-      });
+      return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
-    if (booking.customer._id.toString() !== req.user.id &&
-        req.user.role !== 'admin') {
-      const worker = await Worker.findOne({ user: req.user.id });
-      if (!worker || booking.worker?._id.toString() !== worker._id.toString()) {
-        return res.status(403).json({
-          success: false,
-          message: 'Not authorized to view this booking'
-        });
-      }
-    }
-
-    res.status(200).json({
-      success: true,
-      data: booking
-    });
+    const populated = await populateBooking(booking);
+    res.status(200).json({ success: true, data: populated });
   } catch (error) {
     console.error('Get booking error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while fetching booking'
-    });
+    res.status(500).json({ success: false, message: 'Server error while fetching booking' });
   }
 });
 
 // PUT /api/bookings/:id/accept
 router.put('/:id/accept', protect, authorize('worker'), async (req, res) => {
   try {
-    const worker = await Worker.findOne({ user: req.user.id });
+    const worker = await Worker.findOne({ user: req.user._id });
+    if (!worker) return res.status(404).json({ success: false, message: 'Worker profile not found' });
 
-    if (!worker) {
-      return res.status(404).json({
-        success: false,
-        message: 'Worker profile not found'
-      });
-    }
-
-    const booking = await Booking.findById(req.params.id);
-
-    if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: 'Booking not found'
-      });
-    }
-
-    if (booking.status !== 'pending' && booking.status !== 'assigned') {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot accept booking in '${booking.status}' status`
-      });
+    let booking = await Booking.findOne({ _id: req.params.id });
+    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
+    if (!['pending', 'assigned'].includes(booking.status)) {
+      return res.status(400).json({ success: false, message: `Cannot accept booking in '${booking.status}' status` });
     }
 
     booking.worker = worker._id;
     booking.status = 'accepted';
-    await booking.save();
+    await saveBooking(booking);
 
-    await booking.populate([
-      { path: 'service', select: 'name icon basePrice' },
-      { path: 'customer', select: 'name phone' },
-      { path: 'worker', populate: { path: 'user', select: 'name phone' } }
-    ]);
-
-    res.status(200).json({
-      success: true,
-      data: booking
-    });
+    const populated = await populateBooking(booking);
+    res.status(200).json({ success: true, data: populated });
   } catch (error) {
     console.error('Accept booking error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while accepting booking'
-    });
+    res.status(500).json({ success: false, message: 'Server error while accepting booking' });
   }
 });
 
 // PUT /api/bookings/:id/start
 router.put('/:id/start', protect, authorize('worker'), async (req, res) => {
   try {
-    const worker = await Worker.findOne({ user: req.user.id });
+    const worker = await Worker.findOne({ user: req.user._id });
+    if (!worker) return res.status(404).json({ success: false, message: 'Worker profile not found' });
 
-    if (!worker) {
-      return res.status(404).json({
-        success: false,
-        message: 'Worker profile not found'
-      });
-    }
-
-    const booking = await Booking.findById(req.params.id);
-
-    if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: 'Booking not found'
-      });
-    }
-
-    if (booking.worker.toString() !== worker._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to start this booking'
-      });
-    }
-
-    if (booking.status !== 'accepted' && booking.status !== 'en_route') {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot start booking in '${booking.status}' status`
-      });
+    let booking = await Booking.findOne({ _id: req.params.id });
+    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
+    if (booking.worker !== worker._id) return res.status(403).json({ success: false, message: 'Not authorized' });
+    if (!['accepted', 'en_route'].includes(booking.status)) {
+      return res.status(400).json({ success: false, message: `Cannot start booking in '${booking.status}' status` });
     }
 
     booking.status = 'in_progress';
     booking.actualStartTime = new Date();
-    await booking.save();
+    await saveBooking(booking);
 
-    res.status(200).json({
-      success: true,
-      data: booking
-    });
+    const populated = await populateBooking(booking);
+    res.status(200).json({ success: true, data: populated });
   } catch (error) {
     console.error('Start booking error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while starting booking'
-    });
+    res.status(500).json({ success: false, message: 'Server error while starting booking' });
   }
 });
 
 // PUT /api/bookings/:id/complete
 router.put('/:id/complete', protect, authorize('worker'), async (req, res) => {
   try {
-    const worker = await Worker.findOne({ user: req.user.id });
+    const worker = await Worker.findOne({ user: req.user._id });
+    if (!worker) return res.status(404).json({ success: false, message: 'Worker profile not found' });
 
-    if (!worker) {
-      return res.status(404).json({
-        success: false,
-        message: 'Worker profile not found'
-      });
-    }
-
-    const booking = await Booking.findById(req.params.id);
-
-    if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: 'Booking not found'
-      });
-    }
-
-    if (booking.worker.toString() !== worker._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to complete this booking'
-      });
-    }
-
+    let booking = await Booking.findOne({ _id: req.params.id });
+    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
+    if (booking.worker !== worker._id) return res.status(403).json({ success: false, message: 'Not authorized' });
     if (booking.status !== 'in_progress') {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot complete booking in '${booking.status}' status`
-      });
+      return res.status(400).json({ success: false, message: `Cannot complete booking in '${booking.status}' status` });
     }
-
-    const { additionalCharges } = req.body;
 
     booking.status = 'completed';
     booking.actualEndTime = new Date();
+    await saveBooking(booking);
 
-    if (additionalCharges) {
-      booking.price.additionalCharges = additionalCharges;
-      booking.price.total = booking.price.basePrice + additionalCharges - booking.price.discount;
-    }
+    worker.completedJobs = (worker.completedJobs || 0) + 1;
+    worker.totalJobs = (worker.totalJobs || 0) + 1;
+    worker.earnings.total = (worker.earnings.total || 0) + (booking.price?.total || 0);
+    worker.earnings.thisMonth = (worker.earnings.thisMonth || 0) + (booking.price?.total || 0);
+    await models.workers.update({ _id: worker._id }, { $set: worker });
 
-    await booking.save();
-
-    worker.completedJobs += 1;
-    worker.totalJobs += 1;
-
-    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-    const monthlyCompleted = await Booking.countDocuments({
-      worker: worker._id,
-      status: 'completed',
-      createdAt: { $gte: monthStart }
-    });
-    worker.earnings.thisMonth = monthlyCompleted * booking.price.total;
-    worker.earnings.total += booking.price.total;
-
-    await worker.save();
-
-    res.status(200).json({
-      success: true,
-      data: booking
-    });
+    const populated = await populateBooking(booking);
+    res.status(200).json({ success: true, data: populated });
   } catch (error) {
     console.error('Complete booking error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while completing booking'
-    });
+    res.status(500).json({ success: false, message: 'Server error while completing booking' });
   }
 });
 
 // PUT /api/bookings/:id/cancel
 router.put('/:id/cancel', protect, async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.id);
-
-    if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: 'Booking not found'
-      });
-    }
-
+    let booking = await Booking.findOne({ _id: req.params.id });
+    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
     if (!['pending', 'assigned', 'accepted'].includes(booking.status)) {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot cancel booking in '${booking.status}' status`
-      });
+      return res.status(400).json({ success: false, message: `Cannot cancel booking in '${booking.status}' status` });
     }
 
     booking.status = 'cancelled';
-    await booking.save();
+    await saveBooking(booking);
 
-    res.status(200).json({
-      success: true,
-      message: 'Booking cancelled successfully',
-      data: booking
-    });
+    res.status(200).json({ success: true, message: 'Booking cancelled successfully', data: booking });
   } catch (error) {
     console.error('Cancel booking error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while cancelling booking'
-    });
+    res.status(500).json({ success: false, message: 'Server error while cancelling booking' });
   }
 });
 
@@ -410,84 +260,30 @@ router.put('/:id/rate', protect, authorize('customer'), [
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, errors: errors.array() });
-    }
+    if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
 
-    const booking = await Booking.findById(req.params.id);
-
-    if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: 'Booking not found'
-      });
-    }
-
-    if (booking.customer.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to rate this booking'
-      });
-    }
-
-    if (booking.status !== 'completed') {
-      return res.status(400).json({
-        success: false,
-        message: 'Can only rate completed bookings'
-      });
-    }
-
-    if (booking.rating && booking.rating.score) {
-      return res.status(400).json({
-        success: false,
-        message: 'This booking has already been rated'
-      });
-    }
+    let booking = await Booking.findOne({ _id: req.params.id });
+    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
+    if (booking.customer !== req.user._id) return res.status(403).json({ success: false, message: 'Not authorized' });
+    if (booking.status !== 'completed') return res.status(400).json({ success: false, message: 'Can only rate completed bookings' });
 
     const { score, review } = req.body;
-
-    booking.rating = {
-      score,
-      review: review || '',
-      createdAt: new Date()
-    };
-    await booking.save();
+    booking.rating = { score, review: review || '', createdAt: new Date() };
+    await saveBooking(booking);
 
     if (booking.worker) {
-      const existingReviews = await Review.find({ worker: booking.worker });
-
-      let newTotalRating = 0;
-      existingReviews.forEach(r => newTotalRating += r.rating);
-      newTotalRating += score;
-
-      const newTotalCount = existingReviews.length + 1;
-      const newAverageRating = newTotalRating / newTotalCount;
-
-      await Worker.findByIdAndUpdate(booking.worker, {
-        rating: Math.round(newAverageRating * 10) / 10,
-        totalRatings: newTotalCount
-      });
-
-      await Review.create({
-        booking: booking._id,
-        customer: req.user.id,
-        worker: booking.worker,
-        rating: score,
-        comment: review || ''
-      });
+      const allBookings = await Booking.find({ worker: booking.worker, 'rating.score': { $exists: true, $ne: null } });
+      let total = 0;
+      allBookings.forEach(b => { if (b.rating?.score) total += b.rating.score; });
+      total += score;
+      const avg = total / (allBookings.length + 1);
+      await models.workers.update({ _id: booking.worker }, { $set: { rating: Math.round(avg * 10) / 10, totalRatings: allBookings.length + 1 } });
     }
 
-    res.status(200).json({
-      success: true,
-      message: 'Rating submitted successfully',
-      data: booking
-    });
+    res.status(200).json({ success: true, message: 'Rating submitted successfully', data: booking });
   } catch (error) {
     console.error('Rate booking error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while rating booking'
-    });
+    res.status(500).json({ success: false, message: 'Server error while rating booking' });
   }
 });
 

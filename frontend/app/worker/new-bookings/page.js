@@ -41,22 +41,22 @@ export default function WorkerNewBookings() {
               <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-lg font-bold text-gray-800">{b.serviceType || b.service?.name || 'Service'}</h3>
+                    <h3 className="text-lg font-bold text-gray-800">{b.service?.name || 'Service'}</h3>
                     {b.isEmergency && <span className="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full font-semibold">Emergency</span>}
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600">
                     <div className="flex items-center gap-2"><FaUser className="text-primary-500" /> {b.customer?.name || 'Customer'}</div>
-                    <div className="flex items-center gap-2"><FaMoneyBillWave className="text-green-500" /> ₹{b.totalAmount || b.price?.total || 0}</div>
-                    <div className="flex items-center gap-2"><FaMapMarkerAlt className="text-red-500" /> {b.address || 'N/A'}</div>
-                    <div className="flex items-center gap-2"><FaCalendar className="text-blue-500" /> {b.scheduledDate || 'N/A'} {b.scheduledTime ? `at ${b.scheduledTime}` : ''}</div>
+                    <div className="flex items-center gap-2"><FaMoneyBillWave className="text-green-500" /> ₹{b.price?.total || 0}</div>
+                    <div className="flex items-center gap-2"><FaMapMarkerAlt className="text-red-500" /> {b.address?.street || 'N/A'}</div>
+                    <div className="flex items-center gap-2"><FaCalendar className="text-blue-500" /> {b.scheduledDate ? new Date(b.scheduledDate).toLocaleDateString() : 'N/A'} {b.scheduledTime ? `at ${b.scheduledTime}` : ''}</div>
                   </div>
                   {b.description && <p className="text-sm text-gray-500 mt-2">{b.description}</p>}
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => handleAccept(b._id)} disabled={workerAction.isPending} className="btn-success text-sm flex items-center gap-1">
+                  <button onClick={() => handleAccept(b._id)} disabled={workerAction.isPending} className="bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1 hover:bg-green-600 disabled:opacity-50">
                     {workerAction.isPending ? <FaSpinner className="animate-spin" /> : <FaCheck />} Accept
                   </button>
-                  <button onClick={() => handleReject(b._id)} disabled={workerAction.isPending} className="btn-danger text-sm flex items-center gap-1">
+                  <button onClick={() => handleReject(b._id)} disabled={workerAction.isPending} className="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1 hover:bg-red-600 disabled:opacity-50">
                     <FaTimes /> Reject
                   </button>
                 </div>

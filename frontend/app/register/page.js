@@ -11,7 +11,7 @@ export default function RegisterPage() {
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', role: 'customer' });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { register, login } = useAuth();
+  const { register } = useAuth();
   const router = useRouter();
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });

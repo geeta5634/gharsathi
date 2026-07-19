@@ -1,34 +1,15 @@
 "use client";
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
+import { useBookings } from '@/lib/hooks';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { getUserListings } from '@/lib/supabase/listings';
 import { FaPlus, FaThList, FaUser, FaEnvelope, FaSpinner } from 'react-icons/fa';
 
 export default function CustomerDashboard() {
-  const { user, profile } = useAuth();
-  const [listings, setListings] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (user?.id) {
-      loadListings();
-    }
-  }, [user]);
-
-  const loadListings = async () => {
-    try {
-      const data = await getUserListings(user.id);
-      setListings(data || []);
-    } catch (e) {
-      console.error('Failed to load listings', e);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { profile } = useAuth();
+  const { data: bookings = [], isLoading } = useBookings({ limit: 10 });
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -51,8 +32,8 @@ export default function CustomerDashboard() {
                 <FaThList className="text-xl text-primary-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-800">{listings.length}</p>
-                <p className="text-gray-500 text-sm">My Listings</p>
+                <p className="text-2xl font-bold text-gray-800">{bookings.length}</p>
+                <p className="text-gray-500 text-sm">My Bookings</p>
               </div>
             </div>
             <div className="card flex items-center gap-4">
@@ -76,22 +57,22 @@ export default function CustomerDashboard() {
           </div>
 
           <div className="card">
-            <h2 className="text-lg font-bold text-gray-800 mb-4">My Listings</h2>
-            {loading ? (
+            <h2 className="text-lg font-bold text-gray-800 mb-4">My Bookings</h2>
+            {isLoading ? (
               <div className="flex justify-center py-8"><FaSpinner className="animate-spin text-2xl text-primary-600" /></div>
-            ) : listings.length === 0 ? (
+            ) : bookings.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-gray-500 mb-4">You haven&apos;t created any listings yet.</p>
-                <Link href="/listings/new" className="btn-primary inline-flex items-center gap-2"><FaPlus /> Create Listing</Link>
+                <p className="text-gray-500 mb-4">You haven&apos;t made any bookings yet.</p>
+                <Link href="/customer/book" className="btn-primary inline-flex items-center gap-2"><FaPlus /> Book a Service</Link>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {listings.map(l => (
-                  <div key={l.id} className="border rounded-lg p-4 hover:border-primary-300 transition-colors">
-                    <h3 className="font-bold text-gray-800">{l.title}</h3>
-                    <p className="text-sm text-gray-500 mt-1">{l.description?.substring(0, 80)}...</p>
-                    <p className="text-primary-600 font-bold mt-2">₹{l.price}</p>
-                    <Link href={`/listings/edit/${l.id}`} className="text-sm text-primary-600 hover:text-primary-700 font-medium mt-2 inline-block">Edit</Link>
+                {bookings.map(b => (
+                  <div key={b._id} className="border rounded-lg p-4 hover:border-primary-300 transition-colors">
+                    <h3 className="font-bold text-gray-800">{b.service?.name || 'Service'}</h3>
+                    <p className="text-sm text-gray-500 mt-1">{b.description?.substring(0, 80)}</p>
+                    <p className="text-primary-600 font-bold mt-2">₹{b.price?.total || 0}</p>
+                    <span className="text-xs bg-gray-100 px-2 py-0.5 rounded-full mt-2 inline-block capitalize">{b.status}</span>
                   </div>
                 ))}
               </div>
