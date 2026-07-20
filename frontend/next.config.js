@@ -2,10 +2,13 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ['localhost', 'supabase.co'],
     remotePatterns: [
-      { protocol: 'https', hostname: '**' },
+      { protocol: 'https', hostname: 'images.unsplash.com' },
+      { protocol: 'https', hostname: '**.supabase.co' },
     ],
+  },
+  experimental: {
+    serverComponentsExternalPackages: ['bcryptjs'],
   },
 }
 

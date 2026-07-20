@@ -181,7 +181,7 @@ class NeDBModel {
     if (!doc) return doc;
     if (Array.isArray(doc)) return Promise.all(doc.map(d => this.populate(d, paths)));
     if (!Array.isArray(paths)) paths = [paths];
-    for (const p of paths) {
+    for (let p of paths) {
       if (typeof p === 'string') p = { path: p, select: '' };
       const refField = p.path;
       const refId = doc[refField];

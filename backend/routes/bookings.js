@@ -223,6 +223,7 @@ router.put('/:id/complete', protect, authorize('worker'), async (req, res) => {
 
     worker.completedJobs = (worker.completedJobs || 0) + 1;
     worker.totalJobs = (worker.totalJobs || 0) + 1;
+    if (!worker.earnings) worker.earnings = { total: 0, thisMonth: 0 };
     worker.earnings.total = (worker.earnings.total || 0) + (booking.price?.total || 0);
     worker.earnings.thisMonth = (worker.earnings.thisMonth || 0) + (booking.price?.total || 0);
     await models.workers.update({ _id: worker._id }, { $set: worker });
