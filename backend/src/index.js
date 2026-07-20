@@ -1,6 +1,5 @@
 const express = require("express");
 const cors = require("cors");
-const path = require("path");
 const dotenv = require("dotenv");
 const { PrismaClient } = require("@prisma/client");
 
@@ -30,15 +29,6 @@ app.use("/api/services", serviceRoutes);
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
-});
-
-const frontendBuild = path.join(__dirname, "../../frontend/dist");
-app.use(express.static(frontendBuild));
-
-app.get("*", (req, res) => {
-  if (!req.path.startsWith("/api")) {
-    res.sendFile(path.join(frontendBuild, "index.html"));
-  }
 });
 
 const PORT = process.env.PORT || 5000;
