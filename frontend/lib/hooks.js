@@ -155,6 +155,7 @@ export function useWorkerAction() {
       let endpoint;
       switch (action) {
         case 'accept': endpoint = `/bookings/${id}/accept`; break;
+        case 'reject': endpoint = `/bookings/${id}/reject`; break;
         case 'start': case 'active': endpoint = `/bookings/${id}/start`; break;
         case 'complete': endpoint = `/bookings/${id}/complete`; break;
         case 'cancel': endpoint = `/bookings/${id}/cancel`; break;
@@ -222,7 +223,8 @@ export function useUpdateProfile(role) {
         const res = await api.put('/workers/profile', data);
         return res.data.data;
       }
-      return data;
+      const res = await api.put('/auth/profile', data);
+      return res.data.data;
     },
     onSuccess: () => {
       toast.success('Profile updated!');

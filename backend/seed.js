@@ -33,46 +33,88 @@ const seedData = async () => {
     // Create services
     const servicesData = [
       {
+        name: 'Maid',
+        icon: 'broom',
+        description: 'Professional maid services for home cleaning, dusting, and daily household maintenance.',
+        basePrice: 249,
+        category: 'domestic'
+      },
+      {
+        name: 'Cook',
+        icon: 'fire',
+        description: 'Experienced cooks for daily meal preparation, tiffin service, and special occasion cooking.',
+        basePrice: 249,
+        category: 'domestic'
+      },
+      {
+        name: 'Driver',
+        icon: 'car',
+        description: 'Reliable drivers for personal & family transportation needs on daily or hourly basis.',
+        basePrice: 249,
+        category: 'domestic'
+      },
+      {
+        name: 'Baby Sitter',
+        icon: 'baby',
+        description: 'Trusted baby sitters for child care, feeding, playtime, and ensuring child safety at home.',
+        basePrice: 249,
+        category: 'care'
+      },
+      {
+        name: 'Elder Care',
+        icon: 'heartbeat',
+        description: 'Compassionate elder care services including medication reminders, companionship, and daily assistance.',
+        basePrice: 249,
+        category: 'care'
+      },
+      {
+        name: 'Security Guard',
+        icon: 'shield',
+        description: 'Trained security guards for home, colony, and premises security with regular patrolling.',
+        basePrice: 249,
+        category: 'security'
+      },
+      {
         name: 'Plumber',
-        icon: 'droplet',
+        icon: 'wrench',
         description: 'Expert plumbing services for pipe repairs, installations, leak fixes, and bathroom renovations.',
-        basePrice: 299,
+        basePrice: 249,
         category: 'home_repair'
       },
       {
         name: 'Electrician',
-        icon: 'zap',
+        icon: 'bolt',
         description: 'Professional electrical services for wiring, installations, repairs, and power backup solutions.',
-        basePrice: 349,
+        basePrice: 249,
         category: 'home_repair'
       },
       {
         name: 'Carpenter',
         icon: 'hammer',
         description: 'Skilled carpentry for furniture repair, woodwork, modular installations, and custom designs.',
-        basePrice: 399,
+        basePrice: 249,
         category: 'home_repair'
       },
       {
-        name: 'House Painter',
-        icon: 'paintbrush',
-        description: 'Professional painting services for interior and exterior walls with premium quality paints.',
-        basePrice: 499,
-        category: 'home_improvement'
-      },
-      {
-        name: 'House Cleaning',
+        name: 'Home Cleaning',
         icon: 'sparkles',
-        description: 'Deep home cleaning services including kitchen, bathroom, carpet, and full home sanitization.',
-        basePrice: 599,
+        description: 'Deep home cleaning services including full house, kitchen, bathroom, carpet, and sanitization.',
+        basePrice: 249,
         category: 'cleaning'
       },
       {
-        name: 'Driver/Maid',
-        icon: 'users',
-        description: 'Trained domestic help for daily household chores, cooking, cleaning, and driving services.',
-        basePrice: 449,
-        category: 'domestic'
+        name: 'AC Repair',
+        icon: 'snowflake',
+        description: 'AC repair, servicing, gas refill, and installation for all brands — split, window & central.',
+        basePrice: 249,
+        category: 'home_repair'
+      },
+      {
+        name: 'RO Service/Repair',
+        icon: 'tint',
+        description: 'RO water purifier installation, service, filter replacement, and repair for all brands.',
+        basePrice: 249,
+        category: 'home_repair'
       }
     ];
 
@@ -108,11 +150,18 @@ const seedData = async () => {
     ];
 
     const createdWorkers = [];
-    for (const wd of workersData) {
+    const workerServiceMap = [
+      [6, 7],   // Rajesh: Plumber, Electrician
+      [7, 8],   // Amit: Electrician, Carpenter
+      [6, 9, 10] // Suresh: Plumber, Home Cleaning, AC Repair
+    ];
+    for (let wi = 0; wi < workersData.length; wi++) {
+      const wd = workersData[wi];
       const user = await User.create(wd);
+      const svcIds = workerServiceMap[wi].map(i => services[i]._id);
       const worker = await Worker.create({
         user: user._id,
-        services: [services[0]._id, services[1]._id],
+        services: svcIds,
         experience: Math.floor(Math.random() * 10) + 2,
         bio: `Experienced professional with expertise in home repair services.`,
         trustScore: Math.floor(Math.random() * 30) + 70,

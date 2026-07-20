@@ -60,15 +60,31 @@ export async function getUserListings(userId) {
 }
 
 export async function submitContactMessage(message) {
-  return { id: Date.now().toString(), ...message };
+  try {
+    const res = await api.post('/contact', message);
+    return res.data.data;
+  } catch {
+    const errMsg = 'Failed to send message. Please try again.';
+    throw new Error(errMsg);
+  }
 }
 
 export async function getContactMessages() {
-  return [];
+  try {
+    const res = await api.get('/admin/messages');
+    return res.data.data || [];
+  } catch {
+    return [];
+  }
 }
 
 export async function markMessageRead(id) {
-  return true;
+  try {
+    await api.put(`/admin/messages/${id}/read`);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function getServices() {

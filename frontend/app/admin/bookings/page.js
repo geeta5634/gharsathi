@@ -2,28 +2,32 @@
 
 import { useState } from 'react';
 import StatusBadge from '@/components/StatusBadge';
-import { FaSearch } from 'react-icons/fa';
-
-const sampleBookings = [
-  { _id: 'b1', serviceType: 'Plumber', customer: { name: 'Ravi Singh' }, worker: { name: 'Rajesh K.' }, totalAmount: 299, createdAt: '2024-06-15', status: 'completed' },
-  { _id: 'b2', serviceType: 'Electrician', customer: { name: 'Neha Gupta' }, worker: { name: 'Amit S.' }, totalAmount: 179, createdAt: '2024-06-14', status: 'pending' },
-  { _id: 'b3', serviceType: 'House Cleaning', customer: { name: 'Arun M.' }, worker: null, totalAmount: 149, createdAt: '2024-06-13', status: 'active' },
-  { _id: 'b4', serviceType: 'Carpenter', customer: { name: 'Priya S.' }, worker: { name: 'Suresh P.' }, totalAmount: 249, createdAt: '2024-06-12', status: 'completed' },
-  { _id: 'b5', serviceType: 'Painting', customer: { name: 'Amit P.' }, worker: null, totalAmount: 399, createdAt: '2024-06-11', status: 'cancelled' },
-];
+import { FaSearch, FaSpinner } from 'react-icons/fa';
+import { useAdminBookings } from '@/lib/hooks';
 
 const statusFilters = ['All', 'Pending', 'Active', 'Completed', 'Cancelled'];
 
 export default function AdminBookings() {
-  const [bookings] = useState(sampleBookings);
+  const { data: bookings = [], isLoading } = useAdminBookings();
   const [filter, setFilter] = useState('All');
   const [search, setSearch] = useState('');
 
   const filtered = bookings.filter(b => {
     const matchesFilter = filter === 'All' || b.status?.toLowerCase() === filter.toLowerCase();
-    const matchesSearch = !search || b.serviceType?.toLowerCase().includes(search.toLowerCase()) || b.customer?.name?.toLowerCase().includes(search.toLowerCase()) || b.worker?.name?.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = !search
+      || (b.service?.name || b.serviceType || '')?.toLowerCase().includes(search.toLowerCase())
+      || b.customer?.name?.toLowerCase().includes(search.toLowerCase())
+      || b.worker?.name?.toLowerCase().includes(search.toLowerCase());
     return matchesFilter && matchesSearch;
   });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <FaSpinner className="animate-spin text-2xl text-primary-600" />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -58,13 +62,13 @@ export default function AdminBookings() {
           </thead>
           <tbody>
             {filtered.map(b => (
-              <tr key={b._id} className="border-t hover:bg-gray-50">
-                <td className="px-4 py-3 font-mono text-xs text-gray-500">{b._id?.slice(-6)}</td>
-                <td className="px-4 py-3 font-medium">{b.serviceType}</td>
+              <tr key={b._id || b.id} className="border-t hover:bg-gray-50">
+                <td className="px-4 py-3 font-mono text-xs text-gray-500">{(b._id || b.id)?.slice(-6)}</td>
+                <td className="px-4 py-3 font-medium">{b.service?.name || b.serviceType || 'N/A'}</td>
                 <td className="px-4 py-3 text-gray-600">{b.customer?.name || 'N/A'}</td>
                 <td className="px-4 py-3 text-gray-600">{b.worker?.name || 'Unassigned'}</td>
-                <td className="px-4 py-3 font-bold">₹{b.totalAmount}</td>
-                <td className="px-4 py-3 text-gray-500">{new Date(b.createdAt).toLocaleDateString()}</td>
+                <td className="px-4 py-3 font-bold">₹{b.price?.total || b.totalAmount || 0}</td>
+                <td className="px-4 py-3 text-gray-500">{new Date(b.createdAt || b.created_at).toLocaleDateString()}</td>
                 <td className="px-4 py-3"><StatusBadge status={b.status} /></td>
               </tr>
             ))}

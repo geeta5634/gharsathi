@@ -66,11 +66,11 @@ export default function HomePage() {
                 Your one-stop solution for all home services. From plumbing to cleaning, find verified professionals you can trust.
               </p>
               <div className="flex flex-wrap gap-4">
-                <Link href="/register" className="bg-accent-500 hover:bg-accent-600 text-white font-bold py-3 px-8 rounded-lg text-lg transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95">
+                <Link href={user ? '/customer/book' : '/register'} className="bg-accent-500 hover:bg-accent-600 text-white font-bold py-3 px-8 rounded-lg text-lg transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95">
                   Book Service
                 </Link>
-                <Link href="/register" className="border-2 border-white text-white hover:bg-white hover:text-primary-800 font-bold py-3 px-8 rounded-lg text-lg transition-all duration-200">
-                  Become a Worker
+                <Link href={user ? '/worker' : '/register'} className="border-2 border-white text-white hover:bg-white hover:text-primary-800 font-bold py-3 px-8 rounded-lg text-lg transition-all duration-200">
+                  {user ? 'Worker Dashboard' : 'Become a Worker'}
                 </Link>
               </div>
             </div>
@@ -116,6 +116,14 @@ export default function HomePage() {
               ))}
             </div>
           )}
+          <div className="mt-8 bg-amber-50 border border-amber-200 rounded-xl p-6 max-w-3xl mx-auto">
+            <h3 className="font-bold text-amber-800 text-lg mb-3">Visit Charge Model — Terms & Conditions</h3>
+            <ul className="space-y-2 text-amber-700 text-sm">
+              <li className="flex items-start gap-2">✅ <span>₹249 केवल Visit / Inspection Charge है।</span></li>
+              <li className="flex items-start gap-2">✅ <span>Repair, Labour, Material एवं Installation Charges अलग से होंगे।</span></li>
+              <li className="flex items-start gap-2">✅ <span>अंतिम कार्य एवं भुगतान Customer और Worker की सहमति से तय होगा।</span></li>
+            </ul>
+          </div>
         </div>
       </section>
 
@@ -180,8 +188,8 @@ export default function HomePage() {
                     </li>
                   ))}
                 </ul>
-                <Link href="/register" className={`block text-center py-3 rounded-lg font-semibold transition-all ${plan.popular ? 'bg-accent-500 hover:bg-accent-600 text-white' : 'border-2 border-primary-600 text-primary-600 hover:bg-primary-600 hover:text-white'}`}>
-                  Get Started
+                <Link href={user ? '/customer/membership' : '/register'} className={`block text-center py-3 rounded-lg font-semibold transition-all ${plan.popular ? 'bg-accent-500 hover:bg-accent-600 text-white' : 'border-2 border-primary-600 text-primary-600 hover:bg-primary-600 hover:text-white'}`}>
+                  {user ? 'View Plan' : 'Get Started'}
                 </Link>
               </div>
             ))}
@@ -247,8 +255,8 @@ export default function HomePage() {
           <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to get started?</h2>
           <p className="text-lg text-orange-100 mb-8">Join thousands of happy customers and skilled workers on GharSathi</p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Link href="/register" className="bg-white text-accent-600 hover:bg-orange-50 font-bold py-3 px-8 rounded-lg text-lg transition-all shadow-lg">
-              Sign Up Now <FaArrowRight className="inline ml-2" />
+            <Link href={user ? '/customer/book' : '/register'} className="bg-white text-accent-600 hover:bg-orange-50 font-bold py-3 px-8 rounded-lg text-lg transition-all shadow-lg">
+              {user ? 'Book a Service' : 'Sign Up Now'} <FaArrowRight className="inline ml-2" />
             </Link>
           </div>
         </div>

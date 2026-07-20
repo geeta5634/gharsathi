@@ -6,10 +6,10 @@ import WorkerCard from '@/components/WorkerCard';
 import RazorpayButton from '@/components/RazorpayButton';
 import { useServices, useWorkersByService, useCreateBooking } from '@/lib/hooks';
 import { WorkerCardSkeleton } from '@/components/Skeletons';
-import { FaWrench, FaBolt, FaPaintRoller, FaBroom, FaCar, FaHammer, FaMapMarkerAlt, FaCalendar, FaClock, FaSpinner, FaExclamationTriangle, FaCreditCard, FaMoneyBill } from 'react-icons/fa';
+import { FaWrench, FaBolt, FaBroom, FaCar, FaHammer, FaFire, FaBaby, FaHeartbeat, FaShieldAlt, FaSnowflake, FaTint, FaMagic, FaMapMarkerAlt, FaCalendar, FaClock, FaSpinner, FaExclamationTriangle, FaCreditCard, FaMoneyBill } from 'react-icons/fa';
 
-const serviceIcons = { Plumber: FaWrench, Electrician: FaBolt, Carpenter: FaHammer, 'House Painter': FaPaintRoller, 'House Cleaning': FaBroom, 'Driver / Maid': FaCar };
-const servicePrices = { Plumber: 199, Electrician: 179, Carpenter: 249, 'House Painter': 299, 'House Cleaning': 149, 'Driver / Maid': 399 };
+const serviceIcons = { Maid: FaBroom, Cook: FaFire, Driver: FaCar, 'Baby Sitter': FaBaby, 'Elder Care': FaHeartbeat, 'Security Guard': FaShieldAlt, Plumber: FaWrench, Electrician: FaBolt, Carpenter: FaHammer, 'Home Cleaning': FaMagic, 'AC Repair': FaSnowflake, 'RO Service/Repair': FaTint };
+const servicePrices = { Maid: 249, Cook: 249, Driver: 249, 'Baby Sitter': 249, 'Elder Care': 249, 'Security Guard': 249, Plumber: 249, Electrician: 249, Carpenter: 249, 'Home Cleaning': 249, 'AC Repair': 249, 'RO Service/Repair': 249 };
 
 export default function BookService() {
   const [step, setStep] = useState(1);
@@ -43,6 +43,7 @@ export default function BookService() {
   const handleBooking = () => {
     createBooking.mutate({
       serviceId: selectedService?._id,
+      worker: selectedWorker?._id,
       address: form.address,
       city: form.city,
       pincode: form.pincode,

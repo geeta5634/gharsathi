@@ -1,42 +1,59 @@
 "use client";
 
 import { useState } from 'react';
-import { FaWrench, FaBolt, FaHammer, FaPaintRoller, FaBroom, FaCar, FaPlus, FaEdit, FaToggleOn, FaToggleOff, FaTimes } from 'react-icons/fa';
+import { FaWrench, FaBolt, FaHammer, FaBroom, FaCar, FaFire, FaBaby, FaHeartbeat, FaShieldAlt, FaSnowflake, FaTint, FaMagic, FaPlus, FaEdit, FaToggleOn, FaToggleOff, FaTimes, FaSpinner } from 'react-icons/fa';
 import toast from 'react-hot-toast';
+import { useServices, useCreateService, useUpdateService } from '@/lib/hooks';
 
-const initialServices = [
-  { _id: 's1', name: 'Plumber', description: 'Pipe fitting, leak repair, bathroom fitting', basePrice: 199, active: true, icon: FaWrench },
-  { _id: 's2', name: 'Electrician', description: 'Wiring, switch repair, fan installation', basePrice: 179, active: true, icon: FaBolt },
-  { _id: 's3', name: 'Carpenter', description: 'Furniture repair, door fitting, shelf work', basePrice: 249, active: true, icon: FaHammer },
-  { _id: 's4', name: 'House Painter', description: 'Interior & exterior painting, texture work', basePrice: 299, active: true, icon: FaPaintRoller },
-  { _id: 's5', name: 'House Cleaning', description: 'Deep cleaning, kitchen, bathroom, full home', basePrice: 149, active: true, icon: FaBroom },
-  { _id: 's6', name: 'Driver / Maid', description: 'Daily driver, part-time maid, cooking help', basePrice: 399, active: false, icon: FaCar },
-];
+const iconMap = { FaWrench, FaBolt, FaHammer, FaBroom, FaCar, FaFire, FaBaby, FaHeartbeat, FaShieldAlt, FaSnowflake, FaTint, FaMagic };
+
+function getIcon(name) {
+  const map = { Maid: FaBroom, Cook: FaFire, Driver: FaCar, 'Baby Sitter': FaBaby, 'Elder Care': FaHeartbeat, 'Security Guard': FaShieldAlt, Plumber: FaWrench, Electrician: FaBolt, Carpenter: FaHammer, 'Home Cleaning': FaMagic, 'AC Repair': FaSnowflake, 'RO Service/Repair': FaTint };
+  return map[name] || FaWrench;
+}
 
 export default function AdminServices() {
-  const [services, setServices] = useState(initialServices);
+  const { data: services = [], isLoading } = useServices();
+  const createService = useCreateService();
+  const updateService = useUpdateService();
   const [showModal, setShowModal] = useState(false);
   const [editService, setEditService] = useState(null);
-  const [form, setForm] = useState({ name: '', description: '', basePrice: '', active: true });
+  const [form, setForm] = useState({ name: '', description: '', price: '', is_active: true });
 
-  const openAdd = () => { setEditService(null); setForm({ name: '', description: '', basePrice: '', active: true }); setShowModal(true); };
-  const openEdit = (s) => { setEditService(s); setForm({ name: s.name, description: s.description, basePrice: s.basePrice, active: s.active }); setShowModal(true); };
+  const openAdd = () => { setEditService(null); setForm({ name: '', description: '', price: '', is_active: true }); setShowModal(true); };
+  const openEdit = (s) => { setEditService(s); setForm({ name: s.name, description: s.description, price: s.price || s.basePrice, is_active: s.is_active ?? s.active ?? true }); setShowModal(true); };
 
-  const handleSave = () => {
-    if (editService) {
-      setServices(services.map(s => s._id === editService._id ? { ...s, ...form } : s));
-      toast.success('Service updated!');
-    } else {
-      const newService = { ...form, _id: 's' + Date.now(), icon: FaWrench };
-      setServices([...services, newService]);
-      toast.success('Service added!');
+  const handleSave = async () => {
+    const payload = { name: form.name, description: form.description, price: parseFloat(form.price), is_active: form.is_active };
+    try {
+      if (editService) {
+        await updateService.mutateAsync({ id: editService._id || editService.id, data: payload });
+        toast.success('Service updated!');
+      } else {
+        await createService.mutateAsync(payload);
+        toast.success('Service added!');
+      }
+      setShowModal(false);
+    } catch {
+      toast.error('Failed to save service');
     }
-    setShowModal(false);
   };
 
-  const toggleActive = (id) => {
-    setServices(services.map(s => s._id === id ? { ...s, active: !s.active } : s));
+  const toggleActive = async (s) => {
+    try {
+      await updateService.mutateAsync({ id: s._id || s.id, data: { is_active: !(s.is_active ?? s.active ?? true) } });
+    } catch {
+      toast.error('Failed to toggle service');
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <FaSpinner className="animate-spin text-2xl text-primary-600" />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -47,23 +64,24 @@ export default function AdminServices() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {services.map(s => {
-          const Icon = s.icon;
+          const Icon = iconMap[s.icon] || getIcon(s.name) || FaWrench;
+          const isActive = s.is_active ?? s.active ?? true;
           return (
-            <div key={s._id} className={`card ${!s.active ? 'opacity-60' : ''}`}>
+            <div key={s._id || s.id} className={`card ${!isActive ? 'opacity-60' : ''}`}>
               <div className="flex items-start justify-between mb-3">
                 <Icon className="text-2xl text-primary-600" />
                 <div className="flex gap-1">
                   <button onClick={() => openEdit(s)} className="text-gray-400 hover:text-primary-600 p-1"><FaEdit /></button>
-                  <button onClick={() => toggleActive(s._id)} className={`p-1 ${s.active ? 'text-green-500 hover:text-red-500' : 'text-red-500 hover:text-green-500'}`}>
-                    {s.active ? <FaToggleOn className="text-xl" /> : <FaToggleOff className="text-xl" />}
+                  <button onClick={() => toggleActive(s)} className={`p-1 ${isActive ? 'text-green-500 hover:text-red-500' : 'text-red-500 hover:text-green-500'}`}>
+                    {isActive ? <FaToggleOn className="text-xl" /> : <FaToggleOff className="text-xl" />}
                   </button>
                 </div>
               </div>
               <h3 className="font-bold text-gray-800">{s.name}</h3>
               <p className="text-sm text-gray-500 mt-1">{s.description}</p>
-              <p className="text-primary-600 font-bold mt-2">₹{s.basePrice}</p>
-              <span className={`inline-block mt-2 text-xs px-2 py-0.5 rounded-full font-semibold ${s.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                {s.active ? 'Active' : 'Inactive'}
+              <p className="text-primary-600 font-bold mt-2">₹{s.price || s.basePrice}</p>
+              <span className={`inline-block mt-2 text-xs px-2 py-0.5 rounded-full font-semibold ${isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                {isActive ? 'Active' : 'Inactive'}
               </span>
             </div>
           );
@@ -88,13 +106,16 @@ export default function AdminServices() {
               </div>
               <div>
                 <label className="label">Base Price (₹)</label>
-                <input type="number" value={form.basePrice} onChange={e => setForm({ ...form, basePrice: e.target.value })} className="input-field" placeholder="199" />
+                <input type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} className="input-field" placeholder="199" />
               </div>
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={form.active} onChange={e => setForm({ ...form, active: e.target.checked })} className="w-4 h-4 text-primary-600 rounded" />
+                <input type="checkbox" checked={form.is_active} onChange={e => setForm({ ...form, is_active: e.target.checked })} className="w-4 h-4 text-primary-600 rounded" />
                 <span className="text-sm text-gray-700">Active</span>
               </label>
-              <button onClick={handleSave} className="w-full btn-primary">{editService ? 'Update' : 'Add'} Service</button>
+              <button onClick={handleSave} className="w-full btn-primary" disabled={createService.isPending || updateService.isPending}>
+                {(createService.isPending || updateService.isPending) ? <FaSpinner className="animate-spin inline" /> : null}
+                {editService ? 'Update' : 'Add'} Service
+              </button>
             </div>
           </div>
         </div>

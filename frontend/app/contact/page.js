@@ -67,7 +67,7 @@ export default function ContactPage() {
                     <label className="label">Phone</label>
                     <div className="relative">
                       <FaPhone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                      <input type="tel" name="phone" value={form.phone} onChange={handleChange} className="input-field pl-10" placeholder="9876543210" />
+                      <input type="tel" name="phone" value={form.phone} onChange={handleChange} className="input-field pl-10" placeholder="8690094699" />
                     </div>
                   </div>
                 </div>
@@ -97,7 +97,7 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <h3 className="font-bold text-gray-800">Address</h3>
-                    <p className="text-gray-600">123, Business Hub, Andheri East<br />Mumbai, Maharashtra 400093</p>
+                    <p className="text-gray-600">106,Ganesh Nagar,Old Sardarsamand Road,Back Side Chaitanya School <br />Jhalamand,Jodhpur,Rajasthan 342013</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
@@ -106,7 +106,7 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <h3 className="font-bold text-gray-800">Phone</h3>
-                    <p className="text-gray-600">+91 9876543210</p>
+                    <p className="text-gray-600">+91 8690094699</p>
                     <p className="text-gray-500 text-sm">Mon-Sat, 9AM - 9PM</p>
                   </div>
                 </div>
@@ -127,8 +127,8 @@ export default function ContactPage() {
                 <p className="text-gray-600 text-sm mb-3">
                   Need urgent help? Our emergency service is available 24/7.
                 </p>
-                <a href="tel:+919876543210" className="text-primary-600 font-bold text-lg hover:text-primary-700">
-                  +91 9876543210
+                <a href="tel:+91 8690094699" className="text-primary-600 font-bold text-lg hover:text-primary-700">
+                  +91 8690094699
                 </a>
               </div>
             </div>

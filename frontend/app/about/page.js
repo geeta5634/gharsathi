@@ -91,8 +91,8 @@ export default function AboutPage() {
           <p className="text-gray-600 text-lg mb-14">Meet the team behind GharSathi</p>
           <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
             {[
-              { name: 'Rajesh Kumar', role: 'CEO & Founder', bio: '15+ years in home services industry' },
-              { name: 'Priya Sharma', role: 'CTO', bio: 'Tech leader with passion for innovation' },
+              { name: 'Virendra Singh Rathore', role: 'CEO & Founder', bio: '15+ years in home services industry' },
+              { name: 'Virendra Singh Rathore', role: 'CTO', bio: 'Tech leader with passion for innovation' },
               { name: 'Amit Patel', role: 'COO', bio: 'Operations expert scaling businesses' },
             ].map((member, idx) => (
               <div key={idx} className="card">

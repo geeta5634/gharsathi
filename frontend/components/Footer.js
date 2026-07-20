@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { FaFacebook, FaTwitter, FaInstagram, FaYoutube, FaPhone, FaEnvelope, FaMapMarkerAlt } from 'react-icons/fa';
+import { FaPhone, FaEnvelope, FaMapMarkerAlt } from 'react-icons/fa';
 
 export default function Footer() {
   return (
@@ -16,13 +16,7 @@ export default function Footer() {
             <p className="text-gray-400 text-sm leading-relaxed mb-4">
               Your trusted partner for all home services. Safe, verified, and always on time.
             </p>
-            <div className="flex gap-3">
-              {[FaFacebook, FaTwitter, FaInstagram, FaYoutube].map((Icon, i) => (
-                <a key={i} href="#" className="w-9 h-9 bg-gray-800 hover:bg-primary-600 rounded-lg flex items-center justify-center transition-colors">
-                  <Icon className="text-sm" />
-                </a>
-              ))}
-            </div>
+
           </div>
 
           <div>
@@ -38,20 +32,20 @@ export default function Footer() {
           <div>
             <h4 className="text-white font-semibold mb-4">Services</h4>
             <ul className="space-y-2 text-sm">
-              <li><a href="#" className="hover:text-primary-400 transition-colors">Plumbing</a></li>
-              <li><a href="#" className="hover:text-primary-400 transition-colors">Electrical</a></li>
-              <li><a href="#" className="hover:text-primary-400 transition-colors">Carpentry</a></li>
-              <li><a href="#" className="hover:text-primary-400 transition-colors">Cleaning</a></li>
-              <li><a href="#" className="hover:text-primary-400 transition-colors">Painting</a></li>
+              <li><Link href="/customer/book" className="hover:text-primary-400 transition-colors">Book a Service</Link></li>
+              <li><Link href="/listings" className="hover:text-primary-400 transition-colors">All Services</Link></li>
+              <li><Link href="/register" className="hover:text-primary-400 transition-colors">Become a Worker</Link></li>
+              <li><Link href="/about" className="hover:text-primary-400 transition-colors">About Us</Link></li>
+              <li><Link href="/contact" className="hover:text-primary-400 transition-colors">Contact</Link></li>
             </ul>
           </div>
 
           <div>
             <h4 className="text-white font-semibold mb-4">Contact</h4>
             <ul className="space-y-3 text-sm">
-              <li className="flex items-center gap-2"><FaPhone className="text-primary-400" /> +91 9876543210</li>
+              <li className="flex items-center gap-2"><FaPhone className="text-primary-400" /> +91 8690094699</li>
               <li className="flex items-center gap-2"><FaEnvelope className="text-primary-400" /> support@gharsathi.com</li>
-              <li className="flex items-center gap-2"><FaMapMarkerAlt className="text-primary-400" /> Mumbai, India</li>
+              <li className="flex items-center gap-2"><FaMapMarkerAlt className="text-primary-400" /> Jodhpur, Rajasthan</li>
             </ul>
           </div>
         </div>

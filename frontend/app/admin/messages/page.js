@@ -46,8 +46,10 @@ export default function AdminMessages() {
         <p className="text-gray-500 text-center py-12">No messages yet.</p>
       ) : (
         <div className="space-y-4">
-          {messages.map(m => (
-            <div key={m.id} className={`card ${!m.is_read ? 'ring-2 ring-primary-200 bg-primary-50/30' : ''}`}>
+          {messages.map(m => {
+            const mid = m._id || m.id;
+            return (
+            <div key={mid} className={`card ${!m.is_read ? 'ring-2 ring-primary-200 bg-primary-50/30' : ''}`}>
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <h3 className="font-bold text-gray-800 flex items-center gap-2">
@@ -59,9 +61,9 @@ export default function AdminMessages() {
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-gray-400">{new Date(m.created_at).toLocaleString()}</span>
+                  <span className="text-xs text-gray-400">{new Date(m.created_at || m.createdAt).toLocaleString()}</span>
                   {!m.is_read && (
-                    <button onClick={() => handleMarkRead(m.id)} className="text-primary-600 hover:text-primary-700 text-sm flex items-center gap-1" title="Mark as read">
+                    <button onClick={() => handleMarkRead(mid)} className="text-primary-600 hover:text-primary-700 text-sm flex items-center gap-1" title="Mark as read">
                       <FaEnvelopeOpen /> Mark Read
                     </button>
                   )}
@@ -70,7 +72,8 @@ export default function AdminMessages() {
               {m.subject && <p className="text-sm font-medium text-gray-700 mb-1">Subject: {m.subject}</p>}
               <p className="text-gray-600 text-sm bg-gray-50 rounded-lg p-3">{m.message}</p>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

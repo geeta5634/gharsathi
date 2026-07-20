@@ -84,6 +84,15 @@ export function AuthProvider({ children }) {
         setUser(prev => ({ ...prev, ...res.data.data }));
       }
     } else {
+      try {
+        const res = await api.put('/auth/profile', updates);
+        if (res.data.success) {
+          setProfile(prev => ({ ...prev, ...res.data.data }));
+          setUser(prev => ({ ...prev, ...res.data.data }));
+          return;
+        }
+      } catch {
+      }
       setProfile(prev => ({ ...prev, ...updates }));
       setUser(prev => ({ ...prev, ...updates }));
     }
